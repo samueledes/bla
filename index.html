@@ -1,0 +1,745 @@
+<title>Halfmile Radio — Signal Fade</title>
+
+<style>
+  :root {
+    --ground:    #0F151B;
+    --panel:     #161E26;
+    --hair:      #24303B;
+    --dim:       #5D6C79;
+    --live:      #F2F6F8;
+    --ember:     #F2A65A;
+    --quiet:     #8A9AA6;
+
+    --serif: "Iowan Old Style", "Charter", "Bitstream Charter", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Liberation Sans", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, "Liberation Mono", monospace;
+
+    --glow-a: 13%;
+    --glow-b: 6%;
+
+    --ease: cubic-bezier(.22, .61, .28, 1);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #E9EDF0;
+      --panel:  #DFE5EA;
+      --hair:   #C6D0D7;
+      --dim:    #9AA7B1;
+      --live:   #0E1720;
+      --ember:  #A85F16;
+      --quiet:  #5C6B76;
+      --glow-a: 7%;
+      --glow-b: 3%;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #E9EDF0;
+    --panel:  #DFE5EA;
+    --hair:   #C6D0D7;
+    --dim:    #9AA7B1;
+    --live:   #0E1720;
+    --ember:  #A85F16;
+    --quiet:  #5C6B76;
+    --glow-a: 7%;
+    --glow-b: 3%;
+  }
+  :root[data-theme="dark"] {
+    --ground: #0F151B;
+    --panel:  #161E26;
+    --hair:   #24303B;
+    --dim:    #5D6C79;
+    --live:   #F2F6F8;
+    --ember:  #F2A65A;
+    --quiet:  #8A9AA6;
+    --glow-a: 13%;
+    --glow-b: 6%;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100svh;
+    background: var(--ground);
+    color: var(--live);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  .glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(58vmax 40vmax at 14% 46%, color-mix(in oklab, var(--ember) var(--glow-a), transparent), transparent 62%),
+      radial-gradient(70vmax 50vmax at 92% 8%, color-mix(in oklab, var(--ember) var(--glow-b), transparent), transparent 65%);
+    opacity: .8;
+    z-index: 0;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    height: 100svh;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 0 clamp(20px, 5vw, 56px);
+  }
+
+  /* ── masthead ─────────────────────────────────────────── */
+
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: clamp(20px, 3.4vh, 34px) 0 0;
+  }
+
+  .dial {
+    width: 74px;
+    height: 74px;
+    flex: none;
+    border-radius: 3px;
+    background: var(--panel);
+    border: 1px solid var(--hair);
+    display: block;
+  }
+
+  .ident { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ember);
+    font-weight: 600;
+  }
+
+  .track-title {
+    font-family: var(--serif);
+    font-size: clamp(19px, 2.4vw, 25px);
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  .track-by {
+    font-size: 12.5px;
+    color: var(--quiet);
+    letter-spacing: .01em;
+  }
+
+  .masthead-end { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  /* ── lyric stage ──────────────────────────────────────── */
+
+  .viewport {
+    position: relative;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 15%, #000 68%, transparent 99%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 15%, #000 68%, transparent 99%);
+  }
+
+  .stage {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    padding-right: 4%;
+    transition: transform 760ms var(--ease);
+    will-change: transform;
+  }
+
+  .line {
+    --p: -14%;
+    --d: 0;
+    --past: 0;
+    font-family: var(--serif);
+    font-size: clamp(26px, 4vw, 46px);
+    line-height: 1.16;
+    letter-spacing: -.018em;
+    font-weight: 600;
+    margin: 0;
+    padding: clamp(9px, 1.5vh, 17px) 0;
+    text-wrap: pretty;
+    cursor: pointer;
+    transform-origin: 0 50%;
+    transform: scale(calc(1 - var(--d) * .014));
+    filter: blur(calc(var(--d) * 1.55px));
+    opacity: max(.07, calc((1 - var(--d) * .17) * (1 - var(--past) * .42)));
+    transition:
+      filter 620ms var(--ease),
+      opacity 620ms var(--ease),
+      transform 620ms var(--ease);
+  }
+
+  .line.is-active {
+    filter: none;
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .w {
+    white-space: pre-wrap;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    background-image: linear-gradient(
+      90deg,
+      var(--live) 0%,
+      var(--live) calc(var(--p) - 9%),
+      var(--ember) var(--p),
+      var(--dim) calc(var(--p) + 5%),
+      var(--dim) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .line.is-active .w { text-shadow: 0 0 26px color-mix(in oklab, var(--ember) 15%, transparent); }
+
+  /* ── transport ────────────────────────────────────────── */
+
+  .transport {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0 clamp(18px, 3.2vh, 30px);
+    border-top: 1px solid var(--hair);
+  }
+
+  .clock {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 11.5px;
+    color: var(--quiet);
+    letter-spacing: .04em;
+    flex: none;
+  }
+
+  .rail {
+    position: relative;
+    flex: 1 1 auto;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+    border: 0;
+    background: none;
+    padding: 0;
+  }
+
+  .rail::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    height: 2px;
+    background: var(--hair);
+    border-radius: 2px;
+  }
+
+  .rail-fill {
+    position: absolute;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: var(--ember);
+    border-radius: 2px;
+  }
+
+  .rail-head {
+    position: absolute;
+    left: 0;
+    width: 9px;
+    height: 9px;
+    margin-left: -4.5px;
+    border-radius: 50%;
+    background: var(--ember);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--ember) 60%, transparent);
+    opacity: 0;
+    transition: opacity 180ms var(--ease);
+  }
+
+  .rail:hover .rail-head,
+  .rail:focus-visible .rail-head,
+  .rail.is-scrubbing .rail-head { opacity: 1; }
+
+  button {
+    font: inherit;
+    color: inherit;
+    border: 1px solid var(--hair);
+    background: color-mix(in oklab, var(--panel) 70%, transparent);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: border-color 180ms var(--ease), color 180ms var(--ease);
+  }
+
+  button:hover { border-color: var(--ember); color: var(--ember); }
+
+  :focus-visible {
+    outline: 2px solid var(--ember);
+    outline-offset: 3px;
+  }
+
+  .play {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+
+  .play svg { width: 15px; height: 15px; fill: currentColor; }
+  .play .ico-pause { display: none; }
+  .play[data-playing="true"] .ico-play { display: none; }
+  .play[data-playing="true"] .ico-pause { display: block; }
+
+  .chip {
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 8px 13px;
+    white-space: nowrap;
+  }
+
+  .chip[aria-expanded="true"] { border-color: var(--ember); color: var(--ember); }
+
+  .hint {
+    font-size: 11px;
+    color: var(--quiet);
+    letter-spacing: .02em;
+    flex: none;
+  }
+
+  /* ── own-words drawer ─────────────────────────────────── */
+
+  .drawer {
+    position: fixed;
+    right: clamp(16px, 4vw, 44px);
+    bottom: 96px;
+    width: min(360px, calc(100vw - 32px));
+    background: var(--panel);
+    border: 1px solid var(--hair);
+    border-radius: 4px;
+    padding: 16px;
+    display: grid;
+    gap: 11px;
+    z-index: 3;
+    box-shadow: 0 22px 60px rgb(0 0 0 / .42);
+    transform-origin: 100% 100%;
+    transition: opacity 220ms var(--ease), transform 220ms var(--ease);
+  }
+
+  .drawer[hidden] {
+    display: grid;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px) scale(.98);
+    pointer-events: none;
+    transition: opacity 220ms var(--ease), transform 220ms var(--ease), visibility 0s 220ms;
+  }
+
+  .drawer h2 {
+    margin: 0;
+    font-size: 10.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ember);
+    font-weight: 600;
+  }
+
+  .drawer p { margin: 0; font-size: 12px; color: var(--quiet); line-height: 1.5; }
+
+  textarea {
+    font-family: var(--serif);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--live);
+    background: var(--ground);
+    border: 1px solid var(--hair);
+    border-radius: 3px;
+    padding: 10px;
+    resize: vertical;
+    min-height: 120px;
+    width: 100%;
+  }
+
+  .drawer-actions { display: flex; gap: 8px; }
+  .drawer-actions button { flex: 1; padding: 9px; font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; font-weight: 600; }
+
+  @media (max-width: 620px) {
+    .hint { display: none; }
+    .dial { width: 56px; height: 56px; }
+    .transport { flex-wrap: wrap; gap: 12px 14px; }
+    .rail { flex: 1 0 100%; order: -1; }
+    .chip { margin-left: auto; }
+    #total::before { content: "/ "; color: var(--hair); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage { transition: none; }
+    .line { transition: none; filter: none; }
+    .drawer { transition: none; }
+  }
+</style>
+
+<div class="glow"></div>
+
+<main class="shell">
+  <header class="masthead">
+    <canvas class="dial" width="148" height="148" aria-hidden="true"></canvas>
+    <div class="ident">
+      <span class="eyebrow">Now playing</span>
+      <h1 class="track-title">Signal Fade</h1>
+      <span class="track-by">Halfmile Radio &middot; <em>Tower Songs</em>, 2019</span>
+    </div>
+    <div class="masthead-end">
+      <span class="hint">Space to play &middot; click a line to seek</span>
+    </div>
+  </header>
+
+  <div class="viewport">
+    <div class="stage" id="stage"></div>
+  </div>
+
+  <div class="transport">
+    <button class="play" id="play" data-playing="false" aria-label="Play">
+      <svg class="ico-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5v17l15-8.5z"/></svg>
+      <svg class="ico-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5h5v17H5zM14 3.5h5v17h-5z"/></svg>
+    </button>
+    <span class="clock" id="elapsed">0:00</span>
+    <button class="rail" id="rail" role="slider" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="rail-fill" id="railFill"></span>
+      <span class="rail-head" id="railHead"></span>
+    </button>
+    <span class="clock" id="total">1:10</span>
+    <button class="chip" id="ownToggle" aria-expanded="false" aria-controls="drawer">Your words</button>
+  </div>
+</main>
+
+<aside class="drawer" id="drawer" hidden>
+  <h2>Run your own text</h2>
+  <p>One line per row. Timing is derived from line length, so it fills at a natural reading pace.</p>
+  <textarea id="ownText" spellcheck="false" aria-label="Your lyrics, one line per row"></textarea>
+  <div class="drawer-actions">
+    <button id="useOwn">Play this</button>
+    <button id="restore">Restore song</button>
+  </div>
+</aside>
+
+<script>
+(() => {
+  "use strict";
+
+  const SONG = {
+    duration: 70,
+    lines: [
+      { t:  0.6, d: 3.4, text: "Static on the overpass at a quarter past nine," },
+      { t:  4.2, d: 3.6, text: "you were humming something borrowed and calling it mine." },
+      { t:  8.2, d: 3.0, text: "The dial keeps drifting. The dial keeps drifting." },
+      { t: 11.6, d: 4.0, text: "Somewhere between a whisper and the long way home," },
+      { t: 15.9, d: 3.5, text: "there's a station only you and the wire have known." },
+      { t: 20.0, d: 2.6, text: "So sing it once for the tower," },
+      { t: 22.9, d: 2.6, text: "sing it twice for the rain," },
+      { t: 25.8, d: 3.4, text: "I'll be holding the frequency open again." },
+      { t: 29.6, d: 3.9, text: "Hold the frequency open — I'm still on the line." },
+      { t: 34.0, d: 3.2, text: "Halfway down the highway the reception goes thin," },
+      { t: 37.5, d: 3.4, text: "and every word you gave me starts to bleed at the rim." },
+      { t: 41.2, d: 2.9, text: "I keep the volume low so the ghosts can get in," },
+      { t: 44.4, d: 3.2, text: "and the antenna hums like a hymn." },
+      { t: 48.0, d: 2.5, text: "So sing it once for the tower," },
+      { t: 50.8, d: 2.5, text: "sing it twice for the rain," },
+      { t: 53.6, d: 3.6, text: "I'll be holding the frequency open again." },
+      { t: 57.6, d: 4.2, text: "Every mile is a measure, every measure a name;" },
+      { t: 62.2, d: 4.4, text: "when the signal finally fades, I'll be singing the same." }
+    ]
+  };
+
+  const stage    = document.getElementById("stage");
+  const viewport = stage.parentElement;
+  const playBtn  = document.getElementById("play");
+  const rail     = document.getElementById("rail");
+  const railFill = document.getElementById("railFill");
+  const railHead = document.getElementById("railHead");
+  const elapsedEl= document.getElementById("elapsed");
+  const totalEl  = document.getElementById("total");
+  const dial     = document.querySelector(".dial");
+  const drawer   = document.getElementById("drawer");
+  const ownToggle= document.getElementById("ownToggle");
+  const ownText  = document.getElementById("ownText");
+
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let track = SONG;       // { duration, lines }
+  let lines = [];         // [{ el, words:[{el,t,d}], t, d }]
+  let time = 0;
+  let playing = false;
+  let last = 0;
+  let activeIndex = -1;
+  let anchor = 0;
+
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const fmt = (s) => {
+    s = Math.max(0, Math.floor(s));
+    return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  };
+
+  /* Split a line into word spans, distributing its duration by word length
+     so long words hold the fill longer — the way a singer actually lands them. */
+  function buildLine(line, index) {
+    const p = document.createElement("p");
+    p.className = "line";
+    p.dataset.index = index;
+
+    const raw = line.text.split(/\s+/).filter(Boolean);
+    const weights = raw.map((w) => w.length + 1);
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    const span = line.d * 0.9;          // finish a beat before the line ends
+    const words = [];
+    let cursor = line.t;
+
+    raw.forEach((word, i) => {
+      const el = document.createElement("span");
+      el.className = "w";
+      el.textContent = i === raw.length - 1 ? word : word + " ";
+      p.appendChild(el);
+      const d = (weights[i] / totalWeight) * span;
+      words.push({ el, t: cursor, d });
+      cursor += d;
+    });
+
+    return { el: p, words, t: line.t, d: line.d };
+  }
+
+  function mount(newTrack) {
+    track = newTrack;
+    stage.textContent = "";
+    lines = track.lines.map((line, i) => {
+      const built = buildLine(line, i);
+      stage.appendChild(built.el);
+      return built;
+    });
+    totalEl.textContent = fmt(track.duration);
+    activeIndex = -1;
+    seek(0);
+    requestAnimationFrame(() => layout());
+  }
+
+  function layout() {
+    anchor = viewport.clientHeight * 0.42;
+    positionStage(true);
+  }
+
+  function positionStage(instant) {
+    const i = clamp(activeIndex, 0, lines.length - 1);
+    const el = lines[i].el;
+    const y = anchor - (el.offsetTop + el.offsetHeight / 2);
+    if (instant || reduced) {
+      const prev = stage.style.transition;
+      stage.style.transition = "none";
+      stage.style.transform = `translateY(${y}px)`;
+      void stage.offsetHeight;
+      stage.style.transition = prev;
+    } else {
+      stage.style.transform = `translateY(${y}px)`;
+    }
+  }
+
+  function render() {
+    // which line owns the playhead
+    let idx = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (time >= lines[i].t - 0.35) idx = i;
+    }
+
+    if (idx !== activeIndex) {
+      activeIndex = idx;
+      lines.forEach((line, i) => {
+        const dist = Math.abs(i - idx);
+        line.el.classList.toggle("is-active", i === idx);
+        line.el.style.setProperty("--d", Math.min(dist, 7));
+        line.el.style.setProperty("--past", i < idx ? 1 : 0);
+      });
+      positionStage(false);
+    }
+
+    // fill every word against the playhead
+    // Park the hot edge just outside the word when it is wholly unsung or
+    // wholly sung, so no ember tint bleeds onto words that aren't filling yet.
+    for (const line of lines) {
+      for (const w of line.words) {
+        const p = (time - w.t) / w.d;
+        const pos = p <= 0 ? -14 : p >= 1 ? 114 : p * 100;
+        w.el.style.setProperty("--p", pos.toFixed(2) + "%");
+      }
+    }
+
+    const pct = clamp(time / track.duration, 0, 1);
+    railFill.style.width = (pct * 100) + "%";
+    railHead.style.left = (pct * 100) + "%";
+    rail.setAttribute("aria-valuenow", Math.round(pct * 100));
+    rail.setAttribute("aria-valuetext", fmt(time) + " of " + fmt(track.duration));
+    elapsedEl.textContent = fmt(time);
+    drawDial(pct);
+  }
+
+  function tick(now) {
+    if (!playing) return;
+    const dt = (now - last) / 1000;
+    last = now;
+    time += dt;
+    if (time >= track.duration) {
+      time = track.duration;
+      render();
+      setPlaying(false);
+      return;
+    }
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  function setPlaying(next) {
+    playing = next;
+    playBtn.dataset.playing = String(next);
+    playBtn.setAttribute("aria-label", next ? "Pause" : "Play");
+    if (next) {
+      if (time >= track.duration) time = 0;
+      last = performance.now();
+      requestAnimationFrame(tick);
+    }
+  }
+
+  function seek(t) {
+    time = clamp(t, 0, track.duration);
+    render();
+  }
+
+  /* ── the dial: a warm needle sweeping a tuning scale ── */
+  const dctx = dial.getContext("2d");
+  function drawDial(pct) {
+    const s = dial.width;
+    const css = getComputedStyle(document.documentElement);
+    const ember = css.getPropertyValue("--ember").trim();
+    const dim   = css.getPropertyValue("--dim").trim();
+    const panel = css.getPropertyValue("--panel").trim();
+
+    dctx.clearRect(0, 0, s, s);
+    dctx.fillStyle = panel;
+    dctx.fillRect(0, 0, s, s);
+
+    const cx = s / 2, cy = s * 0.78, r = s * 0.56;
+    dctx.strokeStyle = dim;
+    dctx.lineWidth = 2;
+    for (let i = 0; i <= 22; i++) {
+      const a = Math.PI + (i / 22) * Math.PI;
+      const long = i % 5 === 0;
+      const r1 = r - (long ? 14 : 8);
+      dctx.beginPath();
+      dctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+      dctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      dctx.stroke();
+    }
+
+    const a = Math.PI + pct * Math.PI;
+    const grad = dctx.createRadialGradient(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 0,
+                                           cx + Math.cos(a) * r, cy + Math.sin(a) * r, r * 0.9);
+    grad.addColorStop(0, ember);
+    grad.addColorStop(1, "transparent");
+    dctx.globalAlpha = 0.32;
+    dctx.fillStyle = grad;
+    dctx.fillRect(0, 0, s, s);
+    dctx.globalAlpha = 1;
+
+    dctx.strokeStyle = ember;
+    dctx.lineWidth = 2.5;
+    dctx.beginPath();
+    dctx.moveTo(cx, cy);
+    dctx.lineTo(cx + Math.cos(a) * (r - 4), cy + Math.sin(a) * (r - 4));
+    dctx.stroke();
+  }
+
+  /* ── controls ── */
+  playBtn.addEventListener("click", () => setPlaying(!playing));
+
+  stage.addEventListener("click", (e) => {
+    const p = e.target.closest(".line");
+    if (!p) return;
+    seek(lines[Number(p.dataset.index)].t);
+    if (!playing) setPlaying(true);
+  });
+
+  let scrubbing = false;
+  const seekFromPointer = (e) => {
+    const box = rail.getBoundingClientRect();
+    seek(((e.clientX - box.left) / box.width) * track.duration);
+  };
+  rail.addEventListener("pointerdown", (e) => {
+    scrubbing = true;
+    rail.classList.add("is-scrubbing");
+    rail.setPointerCapture(e.pointerId);
+    seekFromPointer(e);
+  });
+  rail.addEventListener("pointermove", (e) => { if (scrubbing) seekFromPointer(e); });
+  const endScrub = () => { scrubbing = false; rail.classList.remove("is-scrubbing"); };
+  rail.addEventListener("pointerup", endScrub);
+  rail.addEventListener("pointercancel", endScrub);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "TEXTAREA") return;
+    if (e.code === "Space") { e.preventDefault(); setPlaying(!playing); }
+    if (e.key === "ArrowRight") { e.preventDefault(); seek(time + 5); }
+    if (e.key === "ArrowLeft")  { e.preventDefault(); seek(time - 5); }
+  });
+
+  /* ── your own words ── */
+  ownText.value = track.lines.map((l) => l.text).join("\n");
+
+  ownToggle.addEventListener("click", () => {
+    const open = ownToggle.getAttribute("aria-expanded") === "true";
+    ownToggle.setAttribute("aria-expanded", String(!open));
+    drawer.hidden = open;
+    if (!open) {
+      ownText.focus();
+      ownText.setSelectionRange(0, 0);
+      ownText.scrollTop = 0;
+    }
+  });
+
+  document.getElementById("useOwn").addEventListener("click", () => {
+    const rows = ownText.value.split("\n").map((r) => r.trim()).filter(Boolean);
+    if (!rows.length) return;
+    let t = 0.6;
+    const built = rows.map((text) => {
+      const d = clamp(text.length * 0.085, 1.4, 6);
+      const line = { t, d, text };
+      t += d + 0.45;
+      return line;
+    });
+    setPlaying(false);
+    mount({ duration: t + 1.5, lines: built });
+    setPlaying(true);
+  });
+
+  document.getElementById("restore").addEventListener("click", () => {
+    setPlaying(false);
+    ownText.value = SONG.lines.map((l) => l.text).join("\n");
+    mount(SONG);
+    setPlaying(true);
+  });
+
+  addEventListener("resize", layout);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => drawDial(time / track.duration));
+
+  mount(SONG);
+  setTimeout(() => setPlaying(true), 500);
+})();
+</script>
