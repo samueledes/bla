@@ -1,0 +1,709 @@
+/* ==========================================================================
+   apple-design bench — stylesheet
+   Palette: cool teal-biased neutrals. --trace = what the system does,
+   --gesture = what the user did. The split is semantic, not decorative.
+   ========================================================================== */
+
+/* --- Tokens: complete LIGHT palette on bare :root ------------------------ */
+:root {
+  --bg:          #edf0f0;
+  --bg-sunken:   #dfe5e5;
+  --surface:     #fbfcfc;
+  --surface-2:   #f2f5f5;
+
+  --ink:         #0f1a1a;
+  --ink-2:       #465353;
+  --ink-3:       #6e7b7b;
+
+  --rule:        rgba(15, 26, 26, 0.12);
+  --rule-strong: rgba(15, 26, 26, 0.22);
+
+  --trace:       #0b8f82;
+  --trace-soft:  rgba(11, 143, 130, 0.14);
+  --gesture:     #b45309;
+  --gesture-soft:rgba(180, 83, 9, 0.14);
+
+  --glass:        rgba(255, 255, 255, 0.62);
+  --glass-edge:   rgba(255, 255, 255, 0.75);
+  --scrim:        rgba(15, 26, 26, 0.42);
+
+  --shadow-1: 0 1px 2px rgba(15, 26, 26, 0.06), 0 2px 8px rgba(15, 26, 26, 0.05);
+  --shadow-2: 0 2px 6px rgba(15, 26, 26, 0.08), 0 12px 32px rgba(15, 26, 26, 0.12);
+  --shadow-3: 0 4px 12px rgba(15, 26, 26, 0.10), 0 24px 60px rgba(15, 26, 26, 0.20);
+
+  --focus: #0b8f82;
+
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius-card: 14px;
+  --radius-stage: 10px;
+  --radius-chip: 999px;
+}
+
+/* Dark tokens — only redefinitions, guarded so an explicit light choice wins */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:          #0c1213;
+    --bg-sunken:   #070c0d;
+    --surface:     #131b1c;
+    --surface-2:   #182122;
+
+    --ink:         #e4eaea;
+    --ink-2:       #a0afaf;
+    --ink-3:       #748484;
+
+    --rule:        rgba(228, 234, 234, 0.14);
+    --rule-strong: rgba(228, 234, 234, 0.26);
+
+    --trace:       #2fd4c1;
+    --trace-soft:  rgba(47, 212, 193, 0.16);
+    --gesture:     #efa94a;
+    --gesture-soft:rgba(239, 169, 74, 0.16);
+
+    --glass:      rgba(19, 27, 28, 0.62);
+    --glass-edge: rgba(228, 234, 234, 0.16);
+    --scrim:      rgba(0, 0, 0, 0.5);
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
+    --shadow-3: 0 4px 12px rgba(0, 0, 0, 0.5), 0 24px 60px rgba(0, 0, 0, 0.55);
+
+    --focus: #2fd4c1;
+  }
+}
+
+/* Explicit dark stamp wins over a light OS */
+:root[data-theme="dark"] {
+  --bg:          #0c1213;
+  --bg-sunken:   #070c0d;
+  --surface:     #131b1c;
+  --surface-2:   #182122;
+
+  --ink:         #e4eaea;
+  --ink-2:       #a0afaf;
+  --ink-3:       #748484;
+
+  --rule:        rgba(228, 234, 234, 0.14);
+  --rule-strong: rgba(228, 234, 234, 0.26);
+
+  --trace:       #2fd4c1;
+  --trace-soft:  rgba(47, 212, 193, 0.16);
+  --gesture:     #efa94a;
+  --gesture-soft:rgba(239, 169, 74, 0.16);
+
+  --glass:      rgba(19, 27, 28, 0.62);
+  --glass-edge: rgba(228, 234, 234, 0.16);
+  --scrim:      rgba(0, 0, 0, 0.5);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 4px 12px rgba(0, 0, 0, 0.5), 0 24px 60px rgba(0, 0, 0, 0.55);
+
+  --focus: #2fd4c1;
+}
+
+/* --- Base --------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  /* §15: system font, comfortable leading, spacing in rem so Dynamic Type scales layout */
+  font: 100%/1.6 var(--font-ui);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+:where(a) { color: var(--trace); text-underline-offset: 0.2em; }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Take over touch handling only on things that are actually dragged, so the
+   page still scrolls normally everywhere else. */
+.puck, .sheet, .sheet-grabber { touch-action: none; }
+.tap-target { touch-action: manipulation; }
+
+.wrap { width: min(100% - 2.5rem, 66rem); margin-inline: auto; }
+.prose { max-width: 62ch; }
+
+/* --- Type scale ---------------------------------------------------------- */
+/* §15: tracking is size-specific. Tighter as it grows, ~0 at body size,
+   slightly positive on small uppercase labels. */
+.display {
+  font-size: clamp(2.4rem, 6.5vw, 4.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+  margin: 0;
+  text-wrap: balance;
+  font-optical-sizing: auto;
+}
+.h2 {
+  font-size: clamp(1.375rem, 2.6vw, 1.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.021em;
+  font-weight: 650;
+  margin: 0;
+  text-wrap: balance;
+}
+.h3 {
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  letter-spacing: -0.008em;
+  font-weight: 600;
+  margin: 0;
+}
+.lede {
+  font-size: clamp(1.0625rem, 1.6vw, 1.1875rem);
+  line-height: 1.55;
+  letter-spacing: -0.004em;
+  color: var(--ink-2);
+  margin: 0;
+}
+p { margin: 0; }
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* --- Header: translucent chrome, content scrolls under (§12) ------------- */
+.chrome {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--rule);
+}
+/* Scroll edge effect: the blur fades out below the bar instead of a hard rule */
+.chrome::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  height: 26px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+  pointer-events: none;
+}
+.chrome-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 0.6875rem;
+  flex-wrap: wrap;
+}
+.chrome-mark {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-right: auto;
+  min-width: 0;
+}
+.chrome-mark strong {
+  font-size: 0.9375rem;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+}
+.chrome-mark span { color: var(--ink-3); font-size: 0.8125rem; }
+
+/* --- Switch (used for the reduced-motion + theme controls) --------------- */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.switch-track {
+  width: 38px; height: 22px;
+  border-radius: var(--radius-chip);
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  position: relative;
+  flex: none;
+  transition: background 160ms ease-out, border-color 160ms ease-out;
+}
+.switch-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  /* Not gesture-driven, so a short transition is fine here (§3 caveat) */
+  transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.switch input:checked + .switch-track { background: var(--trace); border-color: transparent; }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(16px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* --- Hero ---------------------------------------------------------------- */
+.hero {
+  padding-block: clamp(3rem, 9vw, 6rem) clamp(2rem, 5vw, 3.5rem);
+  display: grid;
+  gap: 1.5rem;
+}
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  padding-top: 0.5rem;
+}
+.source {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  word-break: break-all;
+}
+
+/* --- Bench card ---------------------------------------------------------- */
+.benches { display: grid; gap: 1.25rem; padding-bottom: 3rem; }
+
+.bench {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  scroll-margin-top: 5rem;
+}
+@media (min-width: 40rem) { .bench { padding: 1.5rem; } }
+
+.bench-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+.bench-head .h2 { margin-right: auto; }
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  background: var(--surface-2);
+  white-space: nowrap;
+  flex: none;
+}
+.chip[data-weight="strong"] { color: var(--trace); border-color: var(--trace-soft); background: var(--trace-soft); }
+.chip[data-weight="weak"]   { color: var(--gesture); border-color: var(--gesture-soft); background: var(--gesture-soft); }
+
+.claim {
+  margin: 0;
+  padding-left: 0.875rem;
+  border-left: 2px solid var(--rule-strong);
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  max-width: 68ch;
+}
+.claim cite {
+  display: block;
+  margin-top: 0.375rem;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.note {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 68ch;
+}
+.note b { color: var(--ink); font-weight: 600; }
+
+/* --- Stage: the sunken area a rig lives in ------------------------------- */
+.stage {
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-stage);
+  position: relative;
+  overflow: hidden;
+}
+.stage-pad { padding: 1.25rem; }
+
+.split {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 44rem) { .split { grid-template-columns: 1fr 1fr; } }
+
+.pane {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  padding: 1rem;
+}
+.pane + .pane { border-top: 1px solid var(--rule); }
+@media (min-width: 44rem) {
+  .pane + .pane { border-top: 0; border-left: 1px solid var(--rule); }
+}
+.pane-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+/* --- Readout strip ------------------------------------------------------- */
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-stage);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.readout > div { display: flex; gap: 0.4375rem; align-items: baseline; }
+.readout dt, .readout .k { color: var(--ink-3); }
+.readout dd, .readout .v { margin: 0; color: var(--ink); min-width: 4.5ch; }
+.readout .v[data-kind="gesture"] { color: var(--gesture); }
+.readout .v[data-kind="trace"]   { color: var(--trace); }
+
+/* --- Controls ------------------------------------------------------------ */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem 1rem;
+  align-items: center;
+}
+.btn {
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  letter-spacing: -0.003em;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  padding: 0.4375rem 0.8125rem;
+  cursor: pointer;
+  /* §1: feedback on the press, and it is instant */
+  transition: transform 100ms ease-out, background 120ms ease-out;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: scale(0.97); }
+.btn[data-variant="accent"] { background: var(--trace); border-color: transparent; color: #fff; }
+:root[data-theme="dark"] .btn[data-variant="accent"],
+:root:not([data-theme="light"]) .btn[data-variant="accent"] { color: #06201d; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .btn[data-variant="accent"] { color: #fff; }
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
+}
+.seg button {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--ink-2);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  padding: 0.3125rem 0.625rem;
+  cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
+
+.slider { display: grid; gap: 0.375rem; min-width: 12rem; flex: 1 1 12rem; }
+.slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px; background: var(--rule-strong);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 2px; background: var(--rule-strong);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  box-shadow: var(--shadow-1);
+  margin-top: -7px;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--rule-strong);
+  background: var(--surface); box-shadow: var(--shadow-1);
+}
+
+/* --- Draggable objects --------------------------------------------------- */
+.puck {
+  position: absolute;
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  box-shadow: var(--shadow-2);
+  display: grid;
+  place-content: center;
+  text-align: center;
+  cursor: grab;
+  user-select: none;
+  will-change: transform;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+.puck:active { cursor: grabbing; }
+.puck[data-held="true"] { box-shadow: var(--shadow-3); }
+
+.rig { position: relative; height: 180px; }
+.rig-tall { height: 220px; }
+
+.hairline {
+  position: absolute;
+  background: var(--rule-strong);
+}
+
+.marker {
+  position: absolute;
+  width: 2px;
+  top: 0; bottom: 0;
+  pointer-events: none;
+}
+.marker::after {
+  content: attr(data-tag);
+  position: absolute;
+  top: 2px; left: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.marker[data-kind="release"] { background: var(--gesture-soft); }
+.marker[data-kind="release"]::after { color: var(--gesture); }
+.marker[data-kind="projected"] { background: var(--trace-soft); }
+.marker[data-kind="projected"]::after { color: var(--trace); }
+
+.detent {
+  position: absolute;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--rule-strong);
+  transform: translate(-50%, -50%);
+}
+
+/* --- Response bench ------------------------------------------------------ */
+.tap-target {
+  height: 96px;
+  border-radius: var(--radius-stage);
+  border: 1px dashed var(--rule-strong);
+  background: var(--surface);
+  display: grid;
+  place-content: center;
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--ink-2);
+  cursor: pointer;
+  user-select: none;
+}
+.tap-target[data-lit="true"] {
+  background: var(--trace);
+  border-style: solid;
+  border-color: transparent;
+  color: #fff;
+}
+:root[data-theme="dark"] .tap-target[data-lit="true"],
+:root:not([data-theme="light"]) .tap-target[data-lit="true"] { color: #06201d; }
+
+/* --- Canvas -------------------------------------------------------------- */
+.plot { display: block; width: 100%; height: 200px; }
+
+/* --- Sheet --------------------------------------------------------------- */
+.sheet-host {
+  position: relative;
+  height: 340px;
+  border-radius: var(--radius-stage);
+  overflow: hidden;
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  isolation: isolate;
+}
+.sheet-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.625rem;
+  align-content: start;
+  will-change: transform, filter;
+}
+.sheet-bg-row {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--rule-strong);
+  opacity: 0.5;
+}
+.sheet-bg-row:nth-child(3n) { width: 62%; }
+.sheet-bg-row:nth-child(4n) { width: 78%; }
+
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+  pointer-events: none;
+}
+.sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 78%;
+  border-radius: 16px 16px 0 0;
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-3);
+  will-change: transform;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  touch-action: none;
+}
+.sheet-grabber {
+  padding: 0.625rem;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+}
+.sheet-grabber::before {
+  content: "";
+  width: 38px; height: 5px;
+  border-radius: 3px;
+  background: var(--rule-strong);
+}
+.sheet-body {
+  padding: 0 1.25rem 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+/* §12: vibrancy — over a translucent surface, heavier weight + a touch of
+   tracking instead of flat grey */
+.sheet-body strong {
+  font-size: 0.9375rem;
+  font-weight: 620;
+  letter-spacing: 0.004em;
+  color: var(--ink);
+}
+.sheet-body p { font-size: 0.8125rem; color: var(--ink-2); letter-spacing: 0.006em; }
+
+/* --- Typography bench ---------------------------------------------------- */
+.type-sample { display: grid; gap: 0.875rem; }
+.type-row { display: grid; gap: 0.125rem; }
+.type-row .sz {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.type-row .txt { line-height: 1.05; font-weight: 650; color: var(--ink); }
+.type-row[data-size="xl"] .txt { font-size: clamp(1.75rem, 5vw, 2.75rem); }
+.type-row[data-size="md"] .txt { font-size: 1.25rem; line-height: 1.2; }
+.type-row[data-size="sm"] .txt { font-size: 0.8125rem; line-height: 1.45; font-weight: 500; }
+
+/* --- Verdict ------------------------------------------------------------- */
+.verdict { display: grid; gap: 1rem; padding-block: 2rem 4rem; }
+.verdict ul { margin: 0; padding-left: 1.125rem; display: grid; gap: 0.5rem; }
+.verdict li { color: var(--ink-2); max-width: 68ch; }
+.verdict li b { color: var(--ink); font-weight: 600; }
+
+footer {
+  border-top: 1px solid var(--rule);
+  padding-block: 1.5rem 3rem;
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+}
+
+/* --- §14: reduced motion / transparency / contrast ----------------------- */
+/* Driven by the media query and by the in-page switch, which stamps
+   data-motion="reduce" on the root so you can feel the difference. */
+@media (prefers-reduced-motion: reduce) {
+  .switch-thumb, .btn, .seg button { transition-duration: 1ms; }
+}
+:root[data-motion="reduce"] .switch-thumb,
+:root[data-motion="reduce"] .btn,
+:root[data-motion="reduce"] .seg button { transition-duration: 1ms; }
+
+@media (prefers-reduced-transparency: reduce) {
+  .chrome, .sheet { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .chrome::after { display: none; }
+}
+:root[data-transparency="reduce"] .chrome,
+:root[data-transparency="reduce"] .sheet {
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-transparency="reduce"] .chrome::after { display: none; }
+
+@media (prefers-contrast: more) {
+  .bench, .stage, .readout { border-color: var(--rule-strong); }
+  .chrome, .sheet { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

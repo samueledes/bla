@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Bench — testing the apple-design skill</title>
+<meta name="description" content="Eight rigs that run the apple-design skill's claims as live physics, with the numbers on screen." />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<!-- ARTIFACT:BODY:START -->
+
+<header class="chrome">
+  <div class="wrap chrome-inner">
+    <div class="chrome-mark">
+      <strong>Bench</strong>
+      <span>apple-design, under test</span>
+    </div>
+    <label class="switch" title="Forces the §14 reduced-motion path across every rig on this page">
+      <input type="checkbox" id="motion-switch" />
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+      Reduce motion
+    </label>
+    <label class="switch" title="Forces the §14 reduced-transparency path">
+      <input type="checkbox" id="transparency-switch" />
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+      Reduce transparency
+    </label>
+  </div>
+</header>
+
+<main>
+  <section class="wrap hero">
+    <p class="label">Evaluation rig · 8 benches</p>
+    <h1 class="display">Does the advice survive contact with a finger?</h1>
+    <p class="lede prose">
+      The <b>apple-design</b> skill makes claims that are physical and testable — spring
+      constants, a deceleration rate, a projection formula, a rule about which value an
+      interruption starts from. Each bench below runs one claim as working code, next to the
+      version that ignores it, with the live numbers on screen. Drag things. Flick them.
+      Grab them mid-flight. The point is to feel the difference, or to find out there isn't one.
+    </p>
+    <div class="hero-meta">
+      <span class="chip">Every formula is the skill's, unmodified</span>
+      <span class="chip">No animation libraries</span>
+    </div>
+    <p class="source">source: github.com/emilkowalski/skills · skills/apple-design/SKILL.md</p>
+  </section>
+
+  <div class="wrap benches">
+
+    <!-- 1 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="response">
+      <div class="bench-head">
+        <h2 class="h2">Feedback on press, not release</h2>
+        <span class="chip" data-weight="strong">Feels obvious once split</span>
+      </div>
+      <blockquote class="claim">
+        Respond on pointer-down, not on release. The moment lag appears, the feeling of
+        directness “falls off a cliff.”
+        <cite>§1 Response</cite>
+      </blockquote>
+      <div class="stage">
+        <div class="split">
+          <div class="pane">
+            <div class="pane-title"><span class="label">On pointerdown</span></div>
+            <div class="tap-target" id="tap-good" role="button" tabindex="0">Press and hold</div>
+            <div class="readout">
+              <div><span class="k">latency</span><span class="v" data-kind="trace" id="lat-good">—</span></div>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-title"><span class="label">On click, after a 140 ms settle</span></div>
+            <div class="tap-target" id="tap-bad" role="button" tabindex="0">Press and hold</div>
+            <div class="readout">
+              <div><span class="k">latency</span><span class="v" data-kind="gesture" id="lat-bad">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        Latency is measured for real: <code>pointerdown</code> to the first animation frame on
+        which the lit style is actually painted. The right-hand target is a mild version of the
+        usual sins — waiting for the click event, plus a small “settle” timer.
+        <b>The gap is the 140 ms timer plus however long you hold</b> — so it is over 100 ms on
+        the fastest tap you can manage, and grows from there. The left one does not care how long
+        you hold it.
+      </p>
+    </section>
+
+    <!-- 2 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="tracking">
+      <div class="bench-head">
+        <h2 class="h2">1:1 tracking, and the grab offset</h2>
+        <span class="chip" data-weight="strong">Small rule, large effect</span>
+      </div>
+      <blockquote class="claim">
+        When the user drags something it must stay glued to the finger — and respect the offset
+        from <em>where they grabbed it</em>. Snapping to the element’s centre on grab breaks the
+        illusion immediately.
+        <cite>§2 Direct manipulation</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Grab behaviour">
+          <button type="button" data-offset="true" aria-pressed="true">Respect grab offset</button>
+          <button type="button" data-offset="false" aria-pressed="false">Snap to centre</button>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="rig" id="rig-tracking">
+          <div class="puck" id="puck-tracking">drag me<br />by a corner</div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">grab offset</span><span class="v" data-kind="gesture" id="tr-offset">0, 0</span></div>
+        <div><span class="k">pointer</span><span class="v" id="tr-pointer">—</span></div>
+        <div><span class="k">element</span><span class="v" data-kind="trace" id="tr-element">—</span></div>
+      </div>
+      <p class="note">
+        Grab it by a corner. With the offset respected, the two coordinates stay locked together
+        for the whole drag. Switch to <b>snap to centre</b> and grab the same corner — the jump on
+        pointer-down is the entire complaint, and you only notice how wrong it feels when the
+        alternative is next to it.
+      </p>
+    </section>
+
+    <!-- 3 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="interrupt">
+      <div class="bench-head">
+        <h2 class="h2">Interruption: presentation value vs target value</h2>
+        <span class="chip" data-weight="strong">The strongest claim in the file</span>
+      </div>
+      <blockquote class="claim">
+        Every animation must be interruptible and redirectable at any moment. Always animate from
+        the <em>presentation</em> (current) value, never the target value — starting from the
+        logical value causes a visible jump.
+        <cite>§3 Interruptibility</cite>
+      </blockquote>
+      <div class="stage">
+        <div class="split">
+          <div class="pane">
+            <div class="pane-title">
+              <span class="label">CSS transition</span>
+              <span class="chip" data-weight="weak">jumps</span>
+            </div>
+            <div class="rig" id="rig-css">
+              <div class="puck" id="puck-css">grab me<br />mid-flight</div>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-title">
+              <span class="label">Spring, retargeted from live value</span>
+              <span class="chip" data-weight="strong">follows</span>
+            </div>
+            <div class="rig" id="rig-spring">
+              <div class="puck" id="puck-spring">grab me<br />mid-flight</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">css: on grab</span><span class="v" data-kind="gesture" id="int-css">idle</span></div>
+        <div><span class="k">spring: on grab</span><span class="v" data-kind="trace" id="int-spring">idle</span></div>
+        <div><span class="k">velocity at grab</span><span class="v" data-kind="trace" id="int-vel">0 px/s</span></div>
+      </div>
+      <p class="note">
+        Throw each puck, then grab it again while it is still travelling. The left one reads its
+        own start value instead of the painted one, so it snaps — this is the bug the skill is
+        describing, reproduced honestly. The right one retargets a spring that keeps its position
+        <em>and</em> velocity, so the puck simply arrives in your hand.
+        <b>Reverse it mid-flight and there is no brick wall</b> — the velocity blends through the
+        turn instead of being cut to zero.
+      </p>
+    </section>
+
+    <!-- 4 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="momentum">
+      <div class="bench-head">
+        <h2 class="h2">Momentum projection</h2>
+        <span class="chip" data-weight="strong">Where flicks come from</span>
+      </div>
+      <blockquote class="claim">
+        Don’t snap to the nearest boundary from the <em>release point</em>. Use velocity to project
+        the resting position, then snap to the target nearest that projected point.
+        <code>project(v) = (v/1000)·d/(1−d)</code>, d ≈ 0.998.
+        <cite>§6 Momentum projection</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Snap strategy">
+          <button type="button" data-projection="true" aria-pressed="true">Project, then snap</button>
+          <button type="button" data-projection="false" aria-pressed="false">Snap from release point</button>
+        </div>
+        <div class="slider">
+          <div class="slider-head"><span>deceleration rate</span><span id="decel-val">0.998</span></div>
+          <input type="range" id="decel" min="0.985" max="0.999" step="0.001" value="0.998" />
+        </div>
+      </div>
+      <div class="stage">
+        <div class="rig" id="rig-momentum">
+          <div class="marker" data-kind="release" data-tag="release" id="mk-release" hidden></div>
+          <div class="marker" data-kind="projected" data-tag="projected" id="mk-projected" hidden></div>
+          <div class="puck" id="puck-momentum">flick me<br />sideways</div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">release v</span><span class="v" data-kind="gesture" id="mo-vel">0 px/s</span></div>
+        <div><span class="k">projected Δ</span><span class="v" data-kind="trace" id="mo-proj">0 px</span></div>
+        <div><span class="k">landed on</span><span class="v" id="mo-target">—</span></div>
+      </div>
+      <p class="note">
+        Flick gently and hard, and watch the two markers separate. With projection off, a hard
+        flick and a slow nudge land in the same place — the gesture’s energy is thrown away, which
+        is exactly why some carousels feel deaf.
+        <b>The formula matters:</b> the textbook <code>v²/(2a)</code> is not what ships, and at
+        high velocity it overshoots badly. Drag the deceleration rate down to 0.99 for a snappier,
+        shorter throw.
+      </p>
+    </section>
+
+    <!-- 5 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="parameters">
+      <div class="bench-head">
+        <h2 class="h2">Two parameters instead of three</h2>
+        <span class="chip">Useful, with one caveat</span>
+      </div>
+      <blockquote class="claim">
+        Damping ratio controls overshoot; response is how quickly the value reaches the target, in
+        seconds. Start most UI at damping 1.0. Add bounce only when the gesture itself carried
+        momentum.
+        <cite>§4 Behavior over animation</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="slider">
+          <div class="slider-head"><span>damping ratio</span><span id="damp-val">1.00</span></div>
+          <input type="range" id="damp" min="0.3" max="1.2" step="0.01" value="1" />
+        </div>
+        <div class="slider">
+          <div class="slider-head"><span>response (s)</span><span id="resp-val">0.40</span></div>
+          <input type="range" id="resp" min="0.15" max="0.9" step="0.01" value="0.4" />
+        </div>
+      </div>
+      <div class="controls">
+        <span class="label">Values Apple ships</span>
+        <button class="btn" type="button" data-preset="1,0.4">Move / reposition</button>
+        <button class="btn" type="button" data-preset="0.8,0.4">Rotation</button>
+        <button class="btn" type="button" data-preset="0.8,0.3">Drawer / sheet</button>
+        <button class="btn" type="button" data-variant="accent" id="replay">Replay</button>
+      </div>
+      <div class="stage stage-pad">
+        <canvas class="plot" id="plot" aria-label="Spring response curve over time"></canvas>
+        <div class="rig" id="rig-param" style="height:110px">
+          <div class="puck" id="puck-param" style="width:64px;height:64px">step</div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">overshoot</span><span class="v" data-kind="gesture" id="pa-over">0 %</span></div>
+        <div><span class="k">settles in</span><span class="v" data-kind="trace" id="pa-settle">—</span></div>
+        <div><span class="k">ω</span><span class="v" id="pa-omega">—</span></div>
+      </div>
+      <p class="note">
+        The two knobs are genuinely easier to reason about than mass/stiffness/damping, and the
+        presets land where the skill says they land.
+        <b>The “response is not a duration” warning turns out to be narrower than it sounds.</b>
+        Measured here: damping 1.0 / response 0.40 settles at 0.43 s, and damping 0.8 / response
+        0.40 settles at 0.40 s — for anything critically damped, response <em>is</em> a fair proxy
+        for settle time. It only comes apart once you go bouncy: drag damping down to 0.3 and the
+        same 0.40 s response is still ringing at 0.91 s, more than twice as long. That is a useful
+        qualification the file doesn’t make.
+      </p>
+    </section>
+
+    <!-- 6 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="rubberband">
+      <div class="bench-head">
+        <h2 class="h2">Rubber-banding at a boundary</h2>
+        <span class="chip" data-weight="strong">Cheap, and it works</span>
+      </div>
+      <blockquote class="claim">
+        At an edge, resist progressively instead of stopping hard. A hard stop reads as “frozen”;
+        continuous resistance reads as “responsive, but there’s nothing more here.”
+        <cite>§9 Rubber-banding</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Boundary behaviour">
+          <button type="button" data-band="true" aria-pressed="true">Rubber-band</button>
+          <button type="button" data-band="false" aria-pressed="false">Hard stop</button>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="rig" id="rig-band">
+          <div class="hairline" id="band-wall"></div>
+          <div class="puck" id="puck-band">drag past<br />the line</div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">pointer past edge</span><span class="v" data-kind="gesture" id="rb-over">0 px</span></div>
+        <div><span class="k">element past edge</span><span class="v" data-kind="trace" id="rb-applied">0 px</span></div>
+        <div><span class="k">resistance</span><span class="v" id="rb-ratio">—</span></div>
+      </div>
+      <p class="note">
+        Nine lines of maths for a real improvement. With a hard stop the element stops answering
+        while your finger keeps moving, and the interface reads as broken rather than bounded.
+        The readout shows the follow ratio collapsing as you push further — real things slow before
+        they stop.
+      </p>
+    </section>
+
+    <!-- 7 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="sheet-bench">
+      <div class="bench-head">
+        <h2 class="h2">Everything at once: a sheet</h2>
+        <span class="chip" data-weight="strong">The integration test</span>
+      </div>
+      <blockquote class="claim">
+        Decide reverse vs. commit using the velocity <em>sign</em>, not position, at release. Dim
+        to focus; animate blur and scale together so the surface reads as a real material arriving.
+        <cite>§3, §6, §9, §12, §14</cite>
+      </blockquote>
+      <div class="controls">
+        <button class="btn" data-variant="accent" type="button" id="sheet-open">Open sheet</button>
+        <div class="seg" role="group" aria-label="Commit rule">
+          <button type="button" data-commit="velocity" aria-pressed="true">Commit on velocity sign</button>
+          <button type="button" data-commit="position" aria-pressed="false">Commit on position</button>
+        </div>
+      </div>
+      <div class="sheet-host" id="sheet-host">
+        <div class="sheet-bg" id="sheet-bg" aria-hidden="true">
+          <div class="sheet-bg-row"></div><div class="sheet-bg-row"></div>
+          <div class="sheet-bg-row"></div><div class="sheet-bg-row"></div>
+          <div class="sheet-bg-row"></div><div class="sheet-bg-row"></div>
+          <div class="sheet-bg-row"></div><div class="sheet-bg-row"></div>
+        </div>
+        <div class="sheet-scrim" id="sheet-scrim"></div>
+        <div class="sheet" id="sheet" role="dialog" aria-label="Demo sheet" aria-modal="false">
+          <div class="sheet-grabber" id="sheet-grabber"></div>
+          <div class="sheet-body">
+            <strong>Drag the handle</strong>
+            <p>Three detents. Flick down hard from the top and it dismisses even though it is
+              nowhere near the bottom — that is the velocity sign deciding, not the position.</p>
+            <p>Push up past the top detent and it rubber-bands. Grab it while it is animating and
+              it comes with you. Turn on “Reduce motion” in the header and this becomes a
+              cross-fade with no travel.</p>
+          </div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">detent</span><span class="v" data-kind="trace" id="sh-detent">closed</span></div>
+        <div><span class="k">release v</span><span class="v" data-kind="gesture" id="sh-vel">0 px/s</span></div>
+        <div><span class="k">projected</span><span class="v" id="sh-proj">—</span></div>
+        <div><span class="k">decision</span><span class="v" id="sh-why">—</span></div>
+      </div>
+      <p class="note">
+        This is where the file earns its keep: the individual rules compose into something that
+        behaves correctly under gestures nobody planned for.
+        <b>Switch the commit rule to “position” and flick down hard from the top detent</b> — the
+        sheet fights you and springs back up, which is the exact frustration the velocity rule
+        exists to remove.
+      </p>
+    </section>
+
+    <!-- 8 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="typography">
+      <div class="bench-head">
+        <h2 class="h2">Tracking is size-specific</h2>
+        <span class="chip">True, but the file undersells it</span>
+      </div>
+      <blockquote class="claim">
+        Large display text wants <em>negative</em> tracking; small text wants slightly positive
+        tracking for legibility. A fixed letter-spacing is wrong somewhere.
+        <cite>§15 Typography</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Tracking strategy">
+          <button type="button" data-tracking="optical" aria-pressed="true">Size-specific</button>
+          <button type="button" data-tracking="flat" aria-pressed="false">One value everywhere</button>
+        </div>
+      </div>
+      <div class="stage stage-pad">
+        <div class="type-sample" id="type-sample">
+          <div class="type-row" data-size="xl">
+            <span class="sz">display</span>
+            <span class="txt">Motion inherits your velocity</span>
+          </div>
+          <div class="type-row" data-size="md">
+            <span class="sz">heading</span>
+            <span class="txt">Motion inherits your velocity</span>
+          </div>
+          <div class="type-row" data-size="sm">
+            <span class="sz">caption</span>
+            <span class="txt">Motion inherits your velocity, projects momentum forward, and can be grabbed at any instant.</span>
+          </div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">display</span><span class="v" data-kind="trace" id="ty-xl">-0.035em</span></div>
+        <div><span class="k">heading</span><span class="v" data-kind="trace" id="ty-md">-0.018em</span></div>
+        <div><span class="k">caption</span><span class="v" data-kind="trace" id="ty-sm">0.008em</span></div>
+      </div>
+      <p class="note">
+        The rule is correct and the difference is real at display size — the flat setting looks
+        loose and slightly amateur. <b>But this is the weakest bench on the page</b>, and that is a
+        fair finding: the effect is far smaller than the motion rules, it is nearly invisible at
+        body size, and the skill gives one number for “large” rather than a scale. Judge it against
+        the effort it costs, which is close to none.
+      </p>
+    </section>
+
+  </div>
+
+  <section class="wrap verdict">
+    <h2 class="h2">What this page actually showed</h2>
+    <ul class="prose">
+      <li><b>The physics is real and correctly specified.</b> The projection function, the
+        rubber-band function and the damping/response mapping were used here verbatim, with no
+        tuning, and they produce the behaviour the file promises. That is unusual for design
+        writing, which normally stops at adjectives.</li>
+      <li><b>Interruptibility is the load-bearing idea.</b> Bench 3 and bench 7 are the ones you
+        can feel with your eyes closed. If the skill only ever changed one thing about a codebase,
+        this would be worth it on its own.</li>
+      <li><b>Its ranking is off.</b> Sixteen numbered sections read as sixteen equal rules, but the
+        gap between §3 and §15 in perceived quality is enormous. A reader following it top to
+        bottom will spend effort on letter-spacing before they fix a locked-out transition.</li>
+      <li><b>The visual sections are the thinner half.</b> §12 and §15 are sound but generic — they
+        are the parts that could have been written without the WWDC talks, and they give values
+        without a scale. The motion sections are where the specific, hard-won detail is.</li>
+      <li><b>It assumes a spring library and then mostly doesn’t need one.</b> Everything on this
+        page is about 120 lines of dependency-free code. The file points at Motion / Framer Motion,
+        which is fine, but it slightly undersells how reachable this is by hand.</li>
+      <li><b>Nothing in it measured as wrong.</b> The closest thing to a correction is that its
+        “response is not a duration” warning is broader than the data: at damping 0.8–1.0 response
+        predicts settle time within about 8%. The warning only really applies below damping ~0.5,
+        which is worth knowing, because it means you can budget timings with it after all.</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="wrap">
+  Built to evaluate <span class="mono">skills/apple-design/SKILL.md</span> from
+  github.com/emilkowalski/skills. Every rig implements the skill’s own formulas — no animation
+  library, no framework. Respects <span class="mono">prefers-reduced-motion</span>,
+  <span class="mono">prefers-reduced-transparency</span> and <span class="mono">prefers-contrast</span>.
+</footer>
+
+<script type="module" src="benches.js"></script>
+<!-- ARTIFACT:BODY:END -->
+</body>
+</html>

@@ -1,0 +1,2041 @@
+<meta charset="utf-8" />
+<title>Bench — testing the apple-design skill</title>
+<meta name="description" content="Eight rigs that run the apple-design skill's claims as live physics, with the numbers on screen." />
+<style>
+/* ==========================================================================
+   apple-design bench — stylesheet
+   Palette: cool teal-biased neutrals. --trace = what the system does,
+   --gesture = what the user did. The split is semantic, not decorative.
+   ========================================================================== */
+
+/* --- Tokens: complete LIGHT palette on bare :root ------------------------ */
+:root {
+  --bg:          #edf0f0;
+  --bg-sunken:   #dfe5e5;
+  --surface:     #fbfcfc;
+  --surface-2:   #f2f5f5;
+
+  --ink:         #0f1a1a;
+  --ink-2:       #465353;
+  --ink-3:       #6e7b7b;
+
+  --rule:        rgba(15, 26, 26, 0.12);
+  --rule-strong: rgba(15, 26, 26, 0.22);
+
+  --trace:       #0b8f82;
+  --trace-soft:  rgba(11, 143, 130, 0.14);
+  --gesture:     #b45309;
+  --gesture-soft:rgba(180, 83, 9, 0.14);
+
+  --glass:        rgba(255, 255, 255, 0.62);
+  --glass-edge:   rgba(255, 255, 255, 0.75);
+  --scrim:        rgba(15, 26, 26, 0.42);
+
+  --shadow-1: 0 1px 2px rgba(15, 26, 26, 0.06), 0 2px 8px rgba(15, 26, 26, 0.05);
+  --shadow-2: 0 2px 6px rgba(15, 26, 26, 0.08), 0 12px 32px rgba(15, 26, 26, 0.12);
+  --shadow-3: 0 4px 12px rgba(15, 26, 26, 0.10), 0 24px 60px rgba(15, 26, 26, 0.20);
+
+  --focus: #0b8f82;
+
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius-card: 14px;
+  --radius-stage: 10px;
+  --radius-chip: 999px;
+}
+
+/* Dark tokens — only redefinitions, guarded so an explicit light choice wins */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:          #0c1213;
+    --bg-sunken:   #070c0d;
+    --surface:     #131b1c;
+    --surface-2:   #182122;
+
+    --ink:         #e4eaea;
+    --ink-2:       #a0afaf;
+    --ink-3:       #748484;
+
+    --rule:        rgba(228, 234, 234, 0.14);
+    --rule-strong: rgba(228, 234, 234, 0.26);
+
+    --trace:       #2fd4c1;
+    --trace-soft:  rgba(47, 212, 193, 0.16);
+    --gesture:     #efa94a;
+    --gesture-soft:rgba(239, 169, 74, 0.16);
+
+    --glass:      rgba(19, 27, 28, 0.62);
+    --glass-edge: rgba(228, 234, 234, 0.16);
+    --scrim:      rgba(0, 0, 0, 0.5);
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
+    --shadow-3: 0 4px 12px rgba(0, 0, 0, 0.5), 0 24px 60px rgba(0, 0, 0, 0.55);
+
+    --focus: #2fd4c1;
+  }
+}
+
+/* Explicit dark stamp wins over a light OS */
+:root[data-theme="dark"] {
+  --bg:          #0c1213;
+  --bg-sunken:   #070c0d;
+  --surface:     #131b1c;
+  --surface-2:   #182122;
+
+  --ink:         #e4eaea;
+  --ink-2:       #a0afaf;
+  --ink-3:       #748484;
+
+  --rule:        rgba(228, 234, 234, 0.14);
+  --rule-strong: rgba(228, 234, 234, 0.26);
+
+  --trace:       #2fd4c1;
+  --trace-soft:  rgba(47, 212, 193, 0.16);
+  --gesture:     #efa94a;
+  --gesture-soft:rgba(239, 169, 74, 0.16);
+
+  --glass:      rgba(19, 27, 28, 0.62);
+  --glass-edge: rgba(228, 234, 234, 0.16);
+  --scrim:      rgba(0, 0, 0, 0.5);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 4px 12px rgba(0, 0, 0, 0.5), 0 24px 60px rgba(0, 0, 0, 0.55);
+
+  --focus: #2fd4c1;
+}
+
+/* --- Base --------------------------------------------------------------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  /* §15: system font, comfortable leading, spacing in rem so Dynamic Type scales layout */
+  font: 100%/1.6 var(--font-ui);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+:where(a) { color: var(--trace); text-underline-offset: 0.2em; }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Take over touch handling only on things that are actually dragged, so the
+   page still scrolls normally everywhere else. */
+.puck, .sheet, .sheet-grabber { touch-action: none; }
+.tap-target { touch-action: manipulation; }
+
+.wrap { width: min(100% - 2.5rem, 66rem); margin-inline: auto; }
+.prose { max-width: 62ch; }
+
+/* --- Type scale ---------------------------------------------------------- */
+/* §15: tracking is size-specific. Tighter as it grows, ~0 at body size,
+   slightly positive on small uppercase labels. */
+.display {
+  font-size: clamp(2.4rem, 6.5vw, 4.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+  margin: 0;
+  text-wrap: balance;
+  font-optical-sizing: auto;
+}
+.h2 {
+  font-size: clamp(1.375rem, 2.6vw, 1.75rem);
+  line-height: 1.15;
+  letter-spacing: -0.021em;
+  font-weight: 650;
+  margin: 0;
+  text-wrap: balance;
+}
+.h3 {
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  letter-spacing: -0.008em;
+  font-weight: 600;
+  margin: 0;
+}
+.lede {
+  font-size: clamp(1.0625rem, 1.6vw, 1.1875rem);
+  line-height: 1.55;
+  letter-spacing: -0.004em;
+  color: var(--ink-2);
+  margin: 0;
+}
+p { margin: 0; }
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* --- Header: translucent chrome, content scrolls under (§12) ------------- */
+.chrome {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--rule);
+}
+/* Scroll edge effect: the blur fades out below the bar instead of a hard rule */
+.chrome::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  height: 26px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+  pointer-events: none;
+}
+.chrome-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-block: 0.6875rem;
+  flex-wrap: wrap;
+}
+.chrome-mark {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-right: auto;
+  min-width: 0;
+}
+.chrome-mark strong {
+  font-size: 0.9375rem;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+}
+.chrome-mark span { color: var(--ink-3); font-size: 0.8125rem; }
+
+/* --- Switch (used for the reduced-motion + theme controls) --------------- */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.switch-track {
+  width: 38px; height: 22px;
+  border-radius: var(--radius-chip);
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  position: relative;
+  flex: none;
+  transition: background 160ms ease-out, border-color 160ms ease-out;
+}
+.switch-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  /* Not gesture-driven, so a short transition is fine here (§3 caveat) */
+  transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.switch input:checked + .switch-track { background: var(--trace); border-color: transparent; }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(16px); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* --- Hero ---------------------------------------------------------------- */
+.hero {
+  padding-block: clamp(3rem, 9vw, 6rem) clamp(2rem, 5vw, 3.5rem);
+  display: grid;
+  gap: 1.5rem;
+}
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  padding-top: 0.5rem;
+}
+.source {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  word-break: break-all;
+}
+
+/* --- Bench card ---------------------------------------------------------- */
+.benches { display: grid; gap: 1.25rem; padding-bottom: 3rem; }
+
+.bench {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  scroll-margin-top: 5rem;
+}
+@media (min-width: 40rem) { .bench { padding: 1.5rem; } }
+
+.bench-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+.bench-head .h2 { margin-right: auto; }
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  background: var(--surface-2);
+  white-space: nowrap;
+  flex: none;
+}
+.chip[data-weight="strong"] { color: var(--trace); border-color: var(--trace-soft); background: var(--trace-soft); }
+.chip[data-weight="weak"]   { color: var(--gesture); border-color: var(--gesture-soft); background: var(--gesture-soft); }
+
+.claim {
+  margin: 0;
+  padding-left: 0.875rem;
+  border-left: 2px solid var(--rule-strong);
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  max-width: 68ch;
+}
+.claim cite {
+  display: block;
+  margin-top: 0.375rem;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.note {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 68ch;
+}
+.note b { color: var(--ink); font-weight: 600; }
+
+/* --- Stage: the sunken area a rig lives in ------------------------------- */
+.stage {
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-stage);
+  position: relative;
+  overflow: hidden;
+}
+.stage-pad { padding: 1.25rem; }
+
+.split {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 44rem) { .split { grid-template-columns: 1fr 1fr; } }
+
+.pane {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  padding: 1rem;
+}
+.pane + .pane { border-top: 1px solid var(--rule); }
+@media (min-width: 44rem) {
+  .pane + .pane { border-top: 0; border-left: 1px solid var(--rule); }
+}
+.pane-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+/* --- Readout strip ------------------------------------------------------- */
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-stage);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.readout > div { display: flex; gap: 0.4375rem; align-items: baseline; }
+.readout dt, .readout .k { color: var(--ink-3); }
+.readout dd, .readout .v { margin: 0; color: var(--ink); min-width: 4.5ch; }
+.readout .v[data-kind="gesture"] { color: var(--gesture); }
+.readout .v[data-kind="trace"]   { color: var(--trace); }
+
+/* --- Controls ------------------------------------------------------------ */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem 1rem;
+  align-items: center;
+}
+.btn {
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  letter-spacing: -0.003em;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  padding: 0.4375rem 0.8125rem;
+  cursor: pointer;
+  /* §1: feedback on the press, and it is instant */
+  transition: transform 100ms ease-out, background 120ms ease-out;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: scale(0.97); }
+.btn[data-variant="accent"] { background: var(--trace); border-color: transparent; color: #fff; }
+:root[data-theme="dark"] .btn[data-variant="accent"],
+:root:not([data-theme="light"]) .btn[data-variant="accent"] { color: #06201d; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .btn[data-variant="accent"] { color: #fff; }
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
+}
+.seg button {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--ink-2);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  padding: 0.3125rem 0.625rem;
+  cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
+
+.slider { display: grid; gap: 0.375rem; min-width: 12rem; flex: 1 1 12rem; }
+.slider-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px; background: var(--rule-strong);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 2px; background: var(--rule-strong);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  box-shadow: var(--shadow-1);
+  margin-top: -7px;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--rule-strong);
+  background: var(--surface); box-shadow: var(--shadow-1);
+}
+
+/* --- Draggable objects --------------------------------------------------- */
+.puck {
+  position: absolute;
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  box-shadow: var(--shadow-2);
+  display: grid;
+  place-content: center;
+  text-align: center;
+  cursor: grab;
+  user-select: none;
+  will-change: transform;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+.puck:active { cursor: grabbing; }
+.puck[data-held="true"] { box-shadow: var(--shadow-3); }
+
+.rig { position: relative; height: 180px; }
+.rig-tall { height: 220px; }
+
+.hairline {
+  position: absolute;
+  background: var(--rule-strong);
+}
+
+.marker {
+  position: absolute;
+  width: 2px;
+  top: 0; bottom: 0;
+  pointer-events: none;
+}
+.marker::after {
+  content: attr(data-tag);
+  position: absolute;
+  top: 2px; left: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.marker[data-kind="release"] { background: var(--gesture-soft); }
+.marker[data-kind="release"]::after { color: var(--gesture); }
+.marker[data-kind="projected"] { background: var(--trace-soft); }
+.marker[data-kind="projected"]::after { color: var(--trace); }
+
+.detent {
+  position: absolute;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--rule-strong);
+  transform: translate(-50%, -50%);
+}
+
+/* --- Response bench ------------------------------------------------------ */
+.tap-target {
+  height: 96px;
+  border-radius: var(--radius-stage);
+  border: 1px dashed var(--rule-strong);
+  background: var(--surface);
+  display: grid;
+  place-content: center;
+  font-size: 0.875rem;
+  font-weight: 550;
+  color: var(--ink-2);
+  cursor: pointer;
+  user-select: none;
+}
+.tap-target[data-lit="true"] {
+  background: var(--trace);
+  border-style: solid;
+  border-color: transparent;
+  color: #fff;
+}
+:root[data-theme="dark"] .tap-target[data-lit="true"],
+:root:not([data-theme="light"]) .tap-target[data-lit="true"] { color: #06201d; }
+
+/* --- Canvas -------------------------------------------------------------- */
+.plot { display: block; width: 100%; height: 200px; }
+
+/* --- Sheet --------------------------------------------------------------- */
+.sheet-host {
+  position: relative;
+  height: 340px;
+  border-radius: var(--radius-stage);
+  overflow: hidden;
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  isolation: isolate;
+}
+.sheet-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.625rem;
+  align-content: start;
+  will-change: transform, filter;
+}
+.sheet-bg-row {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--rule-strong);
+  opacity: 0.5;
+}
+.sheet-bg-row:nth-child(3n) { width: 62%; }
+.sheet-bg-row:nth-child(4n) { width: 78%; }
+
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+  pointer-events: none;
+}
+.sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 78%;
+  border-radius: 16px 16px 0 0;
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-3);
+  will-change: transform;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  touch-action: none;
+}
+.sheet-grabber {
+  padding: 0.625rem;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+}
+.sheet-grabber::before {
+  content: "";
+  width: 38px; height: 5px;
+  border-radius: 3px;
+  background: var(--rule-strong);
+}
+.sheet-body {
+  padding: 0 1.25rem 1.25rem;
+  display: grid;
+  gap: 0.5rem;
+  align-content: start;
+}
+/* §12: vibrancy — over a translucent surface, heavier weight + a touch of
+   tracking instead of flat grey */
+.sheet-body strong {
+  font-size: 0.9375rem;
+  font-weight: 620;
+  letter-spacing: 0.004em;
+  color: var(--ink);
+}
+.sheet-body p { font-size: 0.8125rem; color: var(--ink-2); letter-spacing: 0.006em; }
+
+/* --- Typography bench ---------------------------------------------------- */
+.type-sample { display: grid; gap: 0.875rem; }
+.type-row { display: grid; gap: 0.125rem; }
+.type-row .sz {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.type-row .txt { line-height: 1.05; font-weight: 650; color: var(--ink); }
+.type-row[data-size="xl"] .txt { font-size: clamp(1.75rem, 5vw, 2.75rem); }
+.type-row[data-size="md"] .txt { font-size: 1.25rem; line-height: 1.2; }
+.type-row[data-size="sm"] .txt { font-size: 0.8125rem; line-height: 1.45; font-weight: 500; }
+
+/* --- Verdict ------------------------------------------------------------- */
+.verdict { display: grid; gap: 1rem; padding-block: 2rem 4rem; }
+.verdict ul { margin: 0; padding-left: 1.125rem; display: grid; gap: 0.5rem; }
+.verdict li { color: var(--ink-2); max-width: 68ch; }
+.verdict li b { color: var(--ink); font-weight: 600; }
+
+footer {
+  border-top: 1px solid var(--rule);
+  padding-block: 1.5rem 3rem;
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+}
+
+/* --- §14: reduced motion / transparency / contrast ----------------------- */
+/* Driven by the media query and by the in-page switch, which stamps
+   data-motion="reduce" on the root so you can feel the difference. */
+@media (prefers-reduced-motion: reduce) {
+  .switch-thumb, .btn, .seg button { transition-duration: 1ms; }
+}
+:root[data-motion="reduce"] .switch-thumb,
+:root[data-motion="reduce"] .btn,
+:root[data-motion="reduce"] .seg button { transition-duration: 1ms; }
+
+@media (prefers-reduced-transparency: reduce) {
+  .chrome, .sheet { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .chrome::after { display: none; }
+}
+:root[data-transparency="reduce"] .chrome,
+:root[data-transparency="reduce"] .sheet {
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:root[data-transparency="reduce"] .chrome::after { display: none; }
+
+@media (prefers-contrast: more) {
+  .bench, .stage, .readout { border-color: var(--rule-strong); }
+  .chrome, .sheet { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+</style>
+
+
+<header class="chrome">
+  <div class="wrap chrome-inner">
+    <div class="chrome-mark">
+      <strong>Bench</strong>
+      <span>apple-design, under test</span>
+    </div>
+    <label class="switch" title="Forces the §14 reduced-motion path across every rig on this page">
+      <input type="checkbox" id="motion-switch" />
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+      Reduce motion
+    </label>
+    <label class="switch" title="Forces the §14 reduced-transparency path">
+      <input type="checkbox" id="transparency-switch" />
+      <span class="switch-track"><span class="switch-thumb"></span></span>
+      Reduce transparency
+    </label>
+  </div>
+</header>
+
+<main>
+  <section class="wrap hero">
+    <p class="label">Evaluation rig · 8 benches</p>
+    <h1 class="display">Does the advice survive contact with a finger?</h1>
+    <p class="lede prose">
+      The <b>apple-design</b> skill makes claims that are physical and testable — spring
+      constants, a deceleration rate, a projection formula, a rule about which value an
+      interruption starts from. Each bench below runs one claim as working code, next to the
+      version that ignores it, with the live numbers on screen. Drag things. Flick them.
+      Grab them mid-flight. The point is to feel the difference, or to find out there isn't one.
+    </p>
+    <div class="hero-meta">
+      <span class="chip">Every formula is the skill's, unmodified</span>
+      <span class="chip">No animation libraries</span>
+    </div>
+    <p class="source">source: github.com/emilkowalski/skills · skills/apple-design/SKILL.md</p>
+  </section>
+
+  <div class="wrap benches">
+
+    <!-- 1 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="response">
+      <div class="bench-head">
+        <h2 class="h2">Feedback on press, not release</h2>
+        <span class="chip" data-weight="strong">Feels obvious once split</span>
+      </div>
+      <blockquote class="claim">
+        Respond on pointer-down, not on release. The moment lag appears, the feeling of
+        directness “falls off a cliff.”
+        <cite>§1 Response</cite>
+      </blockquote>
+      <div class="stage">
+        <div class="split">
+          <div class="pane">
+            <div class="pane-title"><span class="label">On pointerdown</span></div>
+            <div class="tap-target" id="tap-good" role="button" tabindex="0">Press and hold</div>
+            <div class="readout">
+              <div><span class="k">latency</span><span class="v" data-kind="trace" id="lat-good">—</span></div>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-title"><span class="label">On click, after a 140 ms settle</span></div>
+            <div class="tap-target" id="tap-bad" role="button" tabindex="0">Press and hold</div>
+            <div class="readout">
+              <div><span class="k">latency</span><span class="v" data-kind="gesture" id="lat-bad">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="note">
+        Latency is measured for real: <code>pointerdown</code> to the first animation frame on
+        which the lit style is actually painted. The right-hand target is a mild version of the
+        usual sins — waiting for the click event, plus a small “settle” timer.
+        <b>The gap is the 140 ms timer plus however long you hold</b> — so it is over 100 ms on
+        the fastest tap you can manage, and grows from there. The left one does not care how long
+        you hold it.
+      </p>
+    </section>
+
+    <!-- 2 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="tracking">
+      <div class="bench-head">
+        <h2 class="h2">1:1 tracking, and the grab offset</h2>
+        <span class="chip" data-weight="strong">Small rule, large effect</span>
+      </div>
+      <blockquote class="claim">
+        When the user drags something it must stay glued to the finger — and respect the offset
+        from <em>where they grabbed it</em>. Snapping to the element’s centre on grab breaks the
+        illusion immediately.
+        <cite>§2 Direct manipulation</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Grab behaviour">
+          <button type="button" data-offset="true" aria-pressed="true">Respect grab offset</button>
+          <button type="button" data-offset="false" aria-pressed="false">Snap to centre</button>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="rig" id="rig-tracking">
+          <div class="puck" id="puck-tracking">drag me<br />by a corner</div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">grab offset</span><span class="v" data-kind="gesture" id="tr-offset">0, 0</span></div>
+        <div><span class="k">pointer</span><span class="v" id="tr-pointer">—</span></div>
+        <div><span class="k">element</span><span class="v" data-kind="trace" id="tr-element">—</span></div>
+      </div>
+      <p class="note">
+        Grab it by a corner. With the offset respected, the two coordinates stay locked together
+        for the whole drag. Switch to <b>snap to centre</b> and grab the same corner — the jump on
+        pointer-down is the entire complaint, and you only notice how wrong it feels when the
+        alternative is next to it.
+      </p>
+    </section>
+
+    <!-- 3 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="interrupt">
+      <div class="bench-head">
+        <h2 class="h2">Interruption: presentation value vs target value</h2>
+        <span class="chip" data-weight="strong">The strongest claim in the file</span>
+      </div>
+      <blockquote class="claim">
+        Every animation must be interruptible and redirectable at any moment. Always animate from
+        the <em>presentation</em> (current) value, never the target value — starting from the
+        logical value causes a visible jump.
+        <cite>§3 Interruptibility</cite>
+      </blockquote>
+      <div class="stage">
+        <div class="split">
+          <div class="pane">
+            <div class="pane-title">
+              <span class="label">CSS transition</span>
+              <span class="chip" data-weight="weak">jumps</span>
+            </div>
+            <div class="rig" id="rig-css">
+              <div class="puck" id="puck-css">grab me<br />mid-flight</div>
+            </div>
+          </div>
+          <div class="pane">
+            <div class="pane-title">
+              <span class="label">Spring, retargeted from live value</span>
+              <span class="chip" data-weight="strong">follows</span>
+            </div>
+            <div class="rig" id="rig-spring">
+              <div class="puck" id="puck-spring">grab me<br />mid-flight</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">css: on grab</span><span class="v" data-kind="gesture" id="int-css">idle</span></div>
+        <div><span class="k">spring: on grab</span><span class="v" data-kind="trace" id="int-spring">idle</span></div>
+        <div><span class="k">velocity at grab</span><span class="v" data-kind="trace" id="int-vel">0 px/s</span></div>
+      </div>
+      <p class="note">
+        Throw each puck, then grab it again while it is still travelling. The left one reads its
+        own start value instead of the painted one, so it snaps — this is the bug the skill is
+        describing, reproduced honestly. The right one retargets a spring that keeps its position
+        <em>and</em> velocity, so the puck simply arrives in your hand.
+        <b>Reverse it mid-flight and there is no brick wall</b> — the velocity blends through the
+        turn instead of being cut to zero.
+      </p>
+    </section>
+
+    <!-- 4 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="momentum">
+      <div class="bench-head">
+        <h2 class="h2">Momentum projection</h2>
+        <span class="chip" data-weight="strong">Where flicks come from</span>
+      </div>
+      <blockquote class="claim">
+        Don’t snap to the nearest boundary from the <em>release point</em>. Use velocity to project
+        the resting position, then snap to the target nearest that projected point.
+        <code>project(v) = (v/1000)·d/(1−d)</code>, d ≈ 0.998.
+        <cite>§6 Momentum projection</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Snap strategy">
+          <button type="button" data-projection="true" aria-pressed="true">Project, then snap</button>
+          <button type="button" data-projection="false" aria-pressed="false">Snap from release point</button>
+        </div>
+        <div class="slider">
+          <div class="slider-head"><span>deceleration rate</span><span id="decel-val">0.998</span></div>
+          <input type="range" id="decel" min="0.985" max="0.999" step="0.001" value="0.998" />
+        </div>
+      </div>
+      <div class="stage">
+        <div class="rig" id="rig-momentum">
+          <div class="marker" data-kind="release" data-tag="release" id="mk-release" hidden></div>
+          <div class="marker" data-kind="projected" data-tag="projected" id="mk-projected" hidden></div>
+          <div class="puck" id="puck-momentum">flick me<br />sideways</div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">release v</span><span class="v" data-kind="gesture" id="mo-vel">0 px/s</span></div>
+        <div><span class="k">projected Δ</span><span class="v" data-kind="trace" id="mo-proj">0 px</span></div>
+        <div><span class="k">landed on</span><span class="v" id="mo-target">—</span></div>
+      </div>
+      <p class="note">
+        Flick gently and hard, and watch the two markers separate. With projection off, a hard
+        flick and a slow nudge land in the same place — the gesture’s energy is thrown away, which
+        is exactly why some carousels feel deaf.
+        <b>The formula matters:</b> the textbook <code>v²/(2a)</code> is not what ships, and at
+        high velocity it overshoots badly. Drag the deceleration rate down to 0.99 for a snappier,
+        shorter throw.
+      </p>
+    </section>
+
+    <!-- 5 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="parameters">
+      <div class="bench-head">
+        <h2 class="h2">Two parameters instead of three</h2>
+        <span class="chip">Useful, with one caveat</span>
+      </div>
+      <blockquote class="claim">
+        Damping ratio controls overshoot; response is how quickly the value reaches the target, in
+        seconds. Start most UI at damping 1.0. Add bounce only when the gesture itself carried
+        momentum.
+        <cite>§4 Behavior over animation</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="slider">
+          <div class="slider-head"><span>damping ratio</span><span id="damp-val">1.00</span></div>
+          <input type="range" id="damp" min="0.3" max="1.2" step="0.01" value="1" />
+        </div>
+        <div class="slider">
+          <div class="slider-head"><span>response (s)</span><span id="resp-val">0.40</span></div>
+          <input type="range" id="resp" min="0.15" max="0.9" step="0.01" value="0.4" />
+        </div>
+      </div>
+      <div class="controls">
+        <span class="label">Values Apple ships</span>
+        <button class="btn" type="button" data-preset="1,0.4">Move / reposition</button>
+        <button class="btn" type="button" data-preset="0.8,0.4">Rotation</button>
+        <button class="btn" type="button" data-preset="0.8,0.3">Drawer / sheet</button>
+        <button class="btn" type="button" data-variant="accent" id="replay">Replay</button>
+      </div>
+      <div class="stage stage-pad">
+        <canvas class="plot" id="plot" aria-label="Spring response curve over time"></canvas>
+        <div class="rig" id="rig-param" style="height:110px">
+          <div class="puck" id="puck-param" style="width:64px;height:64px">step</div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">overshoot</span><span class="v" data-kind="gesture" id="pa-over">0 %</span></div>
+        <div><span class="k">settles in</span><span class="v" data-kind="trace" id="pa-settle">—</span></div>
+        <div><span class="k">ω</span><span class="v" id="pa-omega">—</span></div>
+      </div>
+      <p class="note">
+        The two knobs are genuinely easier to reason about than mass/stiffness/damping, and the
+        presets land where the skill says they land.
+        <b>The “response is not a duration” warning turns out to be narrower than it sounds.</b>
+        Measured here: damping 1.0 / response 0.40 settles at 0.43 s, and damping 0.8 / response
+        0.40 settles at 0.40 s — for anything critically damped, response <em>is</em> a fair proxy
+        for settle time. It only comes apart once you go bouncy: drag damping down to 0.3 and the
+        same 0.40 s response is still ringing at 0.91 s, more than twice as long. That is a useful
+        qualification the file doesn’t make.
+      </p>
+    </section>
+
+    <!-- 6 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="rubberband">
+      <div class="bench-head">
+        <h2 class="h2">Rubber-banding at a boundary</h2>
+        <span class="chip" data-weight="strong">Cheap, and it works</span>
+      </div>
+      <blockquote class="claim">
+        At an edge, resist progressively instead of stopping hard. A hard stop reads as “frozen”;
+        continuous resistance reads as “responsive, but there’s nothing more here.”
+        <cite>§9 Rubber-banding</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Boundary behaviour">
+          <button type="button" data-band="true" aria-pressed="true">Rubber-band</button>
+          <button type="button" data-band="false" aria-pressed="false">Hard stop</button>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="rig" id="rig-band">
+          <div class="hairline" id="band-wall"></div>
+          <div class="puck" id="puck-band">drag past<br />the line</div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">pointer past edge</span><span class="v" data-kind="gesture" id="rb-over">0 px</span></div>
+        <div><span class="k">element past edge</span><span class="v" data-kind="trace" id="rb-applied">0 px</span></div>
+        <div><span class="k">resistance</span><span class="v" id="rb-ratio">—</span></div>
+      </div>
+      <p class="note">
+        Nine lines of maths for a real improvement. With a hard stop the element stops answering
+        while your finger keeps moving, and the interface reads as broken rather than bounded.
+        The readout shows the follow ratio collapsing as you push further — real things slow before
+        they stop.
+      </p>
+    </section>
+
+    <!-- 7 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="sheet-bench">
+      <div class="bench-head">
+        <h2 class="h2">Everything at once: a sheet</h2>
+        <span class="chip" data-weight="strong">The integration test</span>
+      </div>
+      <blockquote class="claim">
+        Decide reverse vs. commit using the velocity <em>sign</em>, not position, at release. Dim
+        to focus; animate blur and scale together so the surface reads as a real material arriving.
+        <cite>§3, §6, §9, §12, §14</cite>
+      </blockquote>
+      <div class="controls">
+        <button class="btn" data-variant="accent" type="button" id="sheet-open">Open sheet</button>
+        <div class="seg" role="group" aria-label="Commit rule">
+          <button type="button" data-commit="velocity" aria-pressed="true">Commit on velocity sign</button>
+          <button type="button" data-commit="position" aria-pressed="false">Commit on position</button>
+        </div>
+      </div>
+      <div class="sheet-host" id="sheet-host">
+        <div class="sheet-bg" id="sheet-bg" aria-hidden="true">
+          <div class="sheet-bg-row"></div><div class="sheet-bg-row"></div>
+          <div class="sheet-bg-row"></div><div class="sheet-bg-row"></div>
+          <div class="sheet-bg-row"></div><div class="sheet-bg-row"></div>
+          <div class="sheet-bg-row"></div><div class="sheet-bg-row"></div>
+        </div>
+        <div class="sheet-scrim" id="sheet-scrim"></div>
+        <div class="sheet" id="sheet" role="dialog" aria-label="Demo sheet" aria-modal="false">
+          <div class="sheet-grabber" id="sheet-grabber"></div>
+          <div class="sheet-body">
+            <strong>Drag the handle</strong>
+            <p>Three detents. Flick down hard from the top and it dismisses even though it is
+              nowhere near the bottom — that is the velocity sign deciding, not the position.</p>
+            <p>Push up past the top detent and it rubber-bands. Grab it while it is animating and
+              it comes with you. Turn on “Reduce motion” in the header and this becomes a
+              cross-fade with no travel.</p>
+          </div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">detent</span><span class="v" data-kind="trace" id="sh-detent">closed</span></div>
+        <div><span class="k">release v</span><span class="v" data-kind="gesture" id="sh-vel">0 px/s</span></div>
+        <div><span class="k">projected</span><span class="v" id="sh-proj">—</span></div>
+        <div><span class="k">decision</span><span class="v" id="sh-why">—</span></div>
+      </div>
+      <p class="note">
+        This is where the file earns its keep: the individual rules compose into something that
+        behaves correctly under gestures nobody planned for.
+        <b>Switch the commit rule to “position” and flick down hard from the top detent</b> — the
+        sheet fights you and springs back up, which is the exact frustration the velocity rule
+        exists to remove.
+      </p>
+    </section>
+
+    <!-- 8 ───────────────────────────────────────────────────────────── -->
+    <section class="bench" id="typography">
+      <div class="bench-head">
+        <h2 class="h2">Tracking is size-specific</h2>
+        <span class="chip">True, but the file undersells it</span>
+      </div>
+      <blockquote class="claim">
+        Large display text wants <em>negative</em> tracking; small text wants slightly positive
+        tracking for legibility. A fixed letter-spacing is wrong somewhere.
+        <cite>§15 Typography</cite>
+      </blockquote>
+      <div class="controls">
+        <div class="seg" role="group" aria-label="Tracking strategy">
+          <button type="button" data-tracking="optical" aria-pressed="true">Size-specific</button>
+          <button type="button" data-tracking="flat" aria-pressed="false">One value everywhere</button>
+        </div>
+      </div>
+      <div class="stage stage-pad">
+        <div class="type-sample" id="type-sample">
+          <div class="type-row" data-size="xl">
+            <span class="sz">display</span>
+            <span class="txt">Motion inherits your velocity</span>
+          </div>
+          <div class="type-row" data-size="md">
+            <span class="sz">heading</span>
+            <span class="txt">Motion inherits your velocity</span>
+          </div>
+          <div class="type-row" data-size="sm">
+            <span class="sz">caption</span>
+            <span class="txt">Motion inherits your velocity, projects momentum forward, and can be grabbed at any instant.</span>
+          </div>
+        </div>
+      </div>
+      <div class="readout">
+        <div><span class="k">display</span><span class="v" data-kind="trace" id="ty-xl">-0.035em</span></div>
+        <div><span class="k">heading</span><span class="v" data-kind="trace" id="ty-md">-0.018em</span></div>
+        <div><span class="k">caption</span><span class="v" data-kind="trace" id="ty-sm">0.008em</span></div>
+      </div>
+      <p class="note">
+        The rule is correct and the difference is real at display size — the flat setting looks
+        loose and slightly amateur. <b>But this is the weakest bench on the page</b>, and that is a
+        fair finding: the effect is far smaller than the motion rules, it is nearly invisible at
+        body size, and the skill gives one number for “large” rather than a scale. Judge it against
+        the effort it costs, which is close to none.
+      </p>
+    </section>
+
+  </div>
+
+  <section class="wrap verdict">
+    <h2 class="h2">What this page actually showed</h2>
+    <ul class="prose">
+      <li><b>The physics is real and correctly specified.</b> The projection function, the
+        rubber-band function and the damping/response mapping were used here verbatim, with no
+        tuning, and they produce the behaviour the file promises. That is unusual for design
+        writing, which normally stops at adjectives.</li>
+      <li><b>Interruptibility is the load-bearing idea.</b> Bench 3 and bench 7 are the ones you
+        can feel with your eyes closed. If the skill only ever changed one thing about a codebase,
+        this would be worth it on its own.</li>
+      <li><b>Its ranking is off.</b> Sixteen numbered sections read as sixteen equal rules, but the
+        gap between §3 and §15 in perceived quality is enormous. A reader following it top to
+        bottom will spend effort on letter-spacing before they fix a locked-out transition.</li>
+      <li><b>The visual sections are the thinner half.</b> §12 and §15 are sound but generic — they
+        are the parts that could have been written without the WWDC talks, and they give values
+        without a scale. The motion sections are where the specific, hard-won detail is.</li>
+      <li><b>It assumes a spring library and then mostly doesn’t need one.</b> Everything on this
+        page is about 120 lines of dependency-free code. The file points at Motion / Framer Motion,
+        which is fine, but it slightly undersells how reachable this is by hand.</li>
+      <li><b>Nothing in it measured as wrong.</b> The closest thing to a correction is that its
+        “response is not a duration” warning is broader than the data: at damping 0.8–1.0 response
+        predicts settle time within about 8%. The warning only really applies below damping ~0.5,
+        which is worth knowing, because it means you can budget timings with it after all.</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="wrap">
+  Built to evaluate <span class="mono">skills/apple-design/SKILL.md</span> from
+  github.com/emilkowalski/skills. Every rig implements the skill’s own formulas — no animation
+  library, no framework. Respects <span class="mono">prefers-reduced-motion</span>,
+  <span class="mono">prefers-reduced-transparency</span> and <span class="mono">prefers-contrast</span>.
+</footer>
+
+
+
+<script type="module">
+/* ==========================================================================
+   spring.js — the physics the skill specifies, nothing more.
+
+   Everything here is a direct translation of apple-design SKILL.md:
+   §4  springs parameterised by damping ratio + response (not mass/stiffness)
+   §5  velocity handoff at the seam between drag and animation
+   §6  Apple's exponential-decay momentum projection
+   §9  rubber-banding
+   §11 one rAF loop as the display-synced clock
+   ========================================================================== */
+
+/* --- §11: a single display-synced clock driving every active spring ------ */
+const running = new Set();
+let rafId = null;
+let lastT = 0;
+
+function frame(t) {
+  const dt = lastT ? Math.min((t - lastT) / 1000, 0.064) : 1 / 60;
+  lastT = t;
+  for (const s of running) s.advance(dt);
+  rafId = running.size ? requestAnimationFrame(frame) : (lastT = 0, null);
+}
+
+function wake() {
+  if (rafId === null) rafId = requestAnimationFrame(frame);
+}
+
+/**
+ * A spring in Apple's designer-facing parameters (§4).
+ *
+ *   damping  — damping ratio. 1.0 = critically damped, no overshoot.
+ *              < 1.0 overshoots; lower = bouncier.
+ *   response — seconds to reach the target. NOT a duration: settle time
+ *              emerges from the parameters.
+ *
+ * Retargeting never resets position or velocity, which is what makes it
+ * interruptible (§3) and lets a reversal blend velocity instead of hitting a
+ * "brick wall".
+ */
+class Spring {
+  constructor({ from = 0, velocity = 0, damping = 1, response = 0.4, onChange, onRest } = {}) {
+    this.x = from;
+    this.v = velocity;
+    this.target = from;
+    this.damping = damping;
+    this.response = response;
+    this.onChange = onChange;
+    this.onRest = onRest;
+    this.active = false;
+  }
+
+  get omega() { return (2 * Math.PI) / this.response; }
+
+  /** Retarget mid-flight. Position and velocity carry through (§3). */
+  to(target, { velocity, damping, response } = {}) {
+    this.target = target;
+    if (velocity !== undefined) this.v = velocity;
+    if (damping !== undefined) this.damping = damping;
+    if (response !== undefined) this.response = response;
+    this.start();
+    return this;
+  }
+
+  /** Hard set — used while a finger is driving the value 1:1 (§2). */
+  set(x, v = 0) {
+    this.x = x;
+    this.v = v;
+    this.onChange?.(this.x, this.v);
+    return this;
+  }
+
+  start() {
+    if (!this.active) { this.active = true; running.add(this); wake(); }
+    return this;
+  }
+
+  stop() {
+    this.active = false;
+    running.delete(this);
+    return this;
+  }
+
+  advance(dt) {
+    // Fixed substeps keep semi-implicit Euler stable at low response values.
+    const h = 1 / 600;
+    let left = dt;
+    const w = this.omega;
+    const z = this.damping;
+    while (left > 0) {
+      const s = Math.min(h, left);
+      const a = -2 * z * w * this.v - w * w * (this.x - this.target);
+      this.v += a * s;
+      this.x += this.v * s;
+      left -= s;
+    }
+    if (Math.abs(this.v) < 0.4 && Math.abs(this.x - this.target) < 0.4) {
+      this.x = this.target;
+      this.v = 0;
+      this.stop();
+      this.onChange?.(this.x, this.v);
+      this.onRest?.(this.x);
+      return;
+    }
+    this.onChange?.(this.x, this.v);
+  }
+}
+
+/**
+ * §6 — Apple's momentum projection, from the Designing Fluid Interfaces
+ * sample code. Note this is the exponential-decay form, NOT v²/(2·decel).
+ * decelerationRate ≈ 0.998 for normal scroll feel; 0.99 is snappier.
+ */
+function project(initialVelocity, decelerationRate = 0.998) {
+  return ((initialVelocity / 1000) * decelerationRate) / (1 - decelerationRate);
+}
+
+/** §9 — progressive resistance past a boundary. */
+function rubberband(overshoot, dimension, constant = 0.55) {
+  return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
+}
+
+/** Pick the snap point nearest a position. */
+function nearest(value, points) {
+  return points.reduce((best, p) => (Math.abs(p - value) < Math.abs(best - value) ? p : best), points[0]);
+}
+
+/**
+ * §2 — a short position/time history, so release velocity comes from the
+ * gesture's recent trend rather than the last single event (which is noisy
+ * and reads as zero if the finger paused for one frame).
+ */
+class VelocityTracker {
+  constructor(window = 100) { this.window = window; this.samples = []; }
+
+  clear() { this.samples.length = 0; }
+
+  add(value, time = performance.now()) {
+    this.samples.push({ value, time });
+    while (this.samples.length > 2 && time - this.samples[0].time > this.window) {
+      this.samples.shift();
+    }
+  }
+
+  /** px/s over the tracked window. */
+  get velocity() {
+    if (this.samples.length < 2) return 0;
+    const first = this.samples[0];
+    const last = this.samples[this.samples.length - 1];
+    const dt = (last.time - first.time) / 1000;
+    if (dt <= 0) return 0;
+    return (last.value - first.value) / dt;
+  }
+}
+
+/** True when motion should be reduced — media query OR the in-page switch (§14). */
+function motionReduced() {
+  return (
+    document.documentElement.dataset.motion === 'reduce' ||
+    (document.documentElement.dataset.motion !== 'full' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  );
+}
+
+/** §13 — haptics only where they earn their place, and only if supported. */
+function tick(pattern = 8) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+/* ==========================================================================
+   benches.js — eight rigs, each running one claim from apple-design/SKILL.md
+   next to the version that ignores it. No animation library.
+   ========================================================================== */
+
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const px = (n) => `${Math.round(n)} px`;
+
+/** Segmented control. Calls back with the value of the pressed button. */
+function segment(root, attr, onChange) {
+  const buttons = $$(`button[data-${attr}]`, root);
+  buttons.forEach((b) => {
+    b.addEventListener('click', () => {
+      buttons.forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+      onChange(b.dataset[attr]);
+    });
+  });
+}
+
+/**
+ * §2 — Pointer Events with capture, so tracking survives the pointer leaving
+ * the element's bounds. One active pointer at a time.
+ */
+function draggable(el, { onStart, onMove, onEnd }) {
+  let id = null;
+  el.addEventListener('pointerdown', (e) => {
+    if (id !== null) return;
+    id = e.pointerId;
+    el.setPointerCapture(id);
+    el.dataset.held = 'true';
+    onStart?.(e);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== id) return;
+    onMove?.(e);
+  });
+  const finish = (e) => {
+    if (e.pointerId !== id) return;
+    id = null;
+    el.dataset.held = 'false';
+    onEnd?.(e);
+  };
+  el.addEventListener('pointerup', finish);
+  el.addEventListener('pointercancel', finish);
+}
+
+/** Rig + puck geometry, recomputed on resize rather than cached blindly. */
+function metrics(rig, puck) {
+  const r = rig.getBoundingClientRect();
+  const p = puck.getBoundingClientRect();
+  return { rig: r, w: r.width, h: r.height, pw: p.width, ph: p.height,
+           maxX: Math.max(0, r.width - p.width), maxY: Math.max(0, r.height - p.height) };
+}
+
+/* ==========================================================================
+   Header — §14 switches. These force the reduced paths so the difference is
+   feelable on a machine that has neither setting turned on.
+   ========================================================================== */
+{
+  const root = document.documentElement;
+  const motion = $('#motion-switch');
+  const transparency = $('#transparency-switch');
+
+  motion.checked = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  transparency.checked = matchMedia('(prefers-reduced-transparency: reduce)').matches;
+
+  motion.addEventListener('change', () => {
+    root.dataset.motion = motion.checked ? 'reduce' : 'full';
+  });
+  transparency.addEventListener('change', () => {
+    root.dataset.transparency = transparency.checked ? 'reduce' : 'full';
+  });
+}
+
+/* ==========================================================================
+   1 — Response. Latency measured for real: pointerdown → the frame the lit
+   style is actually painted on.
+   ========================================================================== */
+{
+  const good = $('#tap-good');
+  const bad = $('#tap-bad');
+  const latGood = $('#lat-good');
+  const latBad = $('#lat-bad');
+
+  const report = (out, startedAt) => {
+    // Two frames: one to apply the style, one that confirms it was painted.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      out.textContent = `${Math.round(performance.now() - startedAt)} ms`;
+    }));
+  };
+
+  // The good one: light up on pointerdown, immediately.
+  good.addEventListener('pointerdown', (e) => {
+    const t0 = e.timeStamp || performance.now();
+    good.dataset.lit = 'true';
+    report(latGood, t0);
+  });
+  const unlitGood = () => { good.dataset.lit = 'false'; };
+  good.addEventListener('pointerup', unlitGood);
+  good.addEventListener('pointercancel', unlitGood);
+  good.addEventListener('pointerleave', unlitGood);
+
+  // The bad one: wait for the click, then a small "settle" timer on top.
+  let pressedAt = 0;
+  bad.addEventListener('pointerdown', (e) => { pressedAt = e.timeStamp || performance.now(); });
+  bad.addEventListener('click', () => {
+    const t0 = pressedAt || performance.now();
+    setTimeout(() => {
+      bad.dataset.lit = 'true';
+      report(latBad, t0);
+      setTimeout(() => { bad.dataset.lit = 'false'; }, 450);
+    }, 140);
+  });
+
+  // Keyboard parity, since both are exposed as buttons.
+  [good, bad].forEach((el) => {
+    el.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); el.click(); }
+    });
+  });
+}
+
+/* ==========================================================================
+   2 — 1:1 tracking and the grab offset.
+   ========================================================================== */
+{
+  const rig = $('#rig-tracking');
+  const puck = $('#puck-tracking');
+  const outOffset = $('#tr-offset');
+  const outPointer = $('#tr-pointer');
+  const outElement = $('#tr-element');
+
+  let respectOffset = true;
+  let grab = { x: 0, y: 0 };
+  let pos = { x: 12, y: 12 };
+
+  const paint = () => { puck.style.transform = `translate3d(${pos.x}px, ${pos.y}px, 0)`; };
+  paint();
+
+  segment($('#tracking'), 'offset', (v) => { respectOffset = v === 'true'; });
+
+  draggable(puck, {
+    onStart(e) {
+      const m = metrics(rig, puck);
+      if (respectOffset) {
+        // Where they actually grabbed it (§2).
+        grab = { x: e.clientX - (m.rig.left + pos.x), y: e.clientY - (m.rig.top + pos.y) };
+      } else {
+        // The bug: assume the centre, and the element jumps to the finger.
+        grab = { x: m.pw / 2, y: m.ph / 2 };
+      }
+      outOffset.textContent = `${Math.round(grab.x)}, ${Math.round(grab.y)}`;
+    },
+    onMove(e) {
+      const m = metrics(rig, puck);
+      pos.x = clamp(e.clientX - m.rig.left - grab.x, 0, m.maxX);
+      pos.y = clamp(e.clientY - m.rig.top - grab.y, 0, m.maxY);
+      paint();
+      outPointer.textContent = `${Math.round(e.clientX - m.rig.left)}, ${Math.round(e.clientY - m.rig.top)}`;
+      outElement.textContent = `${Math.round(pos.x + grab.x)}, ${Math.round(pos.y + grab.y)}`;
+    },
+  });
+
+  new ResizeObserver(() => {
+    const m = metrics(rig, puck);
+    pos.x = clamp(pos.x, 0, m.maxX);
+    pos.y = clamp(pos.y, 0, m.maxY);
+    paint();
+  }).observe(rig);
+}
+
+/* ==========================================================================
+   3 — Interruption. Left: a CSS transition retargeted from its logical value.
+   Right: independent X and Y springs retargeted from the presentation value,
+   carrying velocity through (§3).
+   ========================================================================== */
+{
+  const HOME = { x: 12, y: 12 };
+  const outCss = $('#int-css');
+  const outSpring = $('#int-spring');
+  const outVel = $('#int-vel');
+
+  /* --- left: the transition, with the bug the skill describes -------------- */
+  {
+    const rig = $('#rig-css');
+    const puck = $('#puck-css');
+    // `logical` is what the code thinks the position is. It is only correct
+    // when nothing is moving — which is exactly the trap.
+    let logical = { ...HOME };
+    let grab = { x: 0, y: 0 };
+
+    const paint = () => { puck.style.transform = `translate3d(${logical.x}px, ${logical.y}px, 0)`; };
+    paint();
+
+    const painted = () => {
+      const m = new DOMMatrixReadOnly(getComputedStyle(puck).transform);
+      return { x: m.m41, y: m.m42 };
+    };
+
+    draggable(puck, {
+      onStart(e) {
+        const live = painted();
+        const jump = Math.hypot(live.x - logical.x, live.y - logical.y);
+        outCss.textContent = jump > 1 ? `jumped ${px(jump)}` : 'no jump';
+        puck.style.transition = 'none';
+        paint(); // ← starts from the logical value, not the painted one
+        const m = metrics(rig, puck);
+        grab = { x: e.clientX - (m.rig.left + logical.x), y: e.clientY - (m.rig.top + logical.y) };
+      },
+      onMove(e) {
+        const m = metrics(rig, puck);
+        logical.x = clamp(e.clientX - m.rig.left - grab.x, 0, m.maxX);
+        logical.y = clamp(e.clientY - m.rig.top - grab.y, 0, m.maxY);
+        paint();
+      },
+      onEnd() {
+        logical = { ...HOME };
+        puck.style.transition = motionReduced()
+          ? 'transform 1ms linear'
+          : 'transform 600ms cubic-bezier(0.32, 0.72, 0, 1)';
+        paint();
+      },
+    });
+  }
+
+  /* --- right: two springs, one per axis ----------------------------------- */
+  {
+    const rig = $('#rig-spring');
+    const puck = $('#puck-spring');
+
+    const paint = () => {
+      puck.style.transform = `translate3d(${sx.x}px, ${sy.x}px, 0)`;
+    };
+    // §3: decompose 2D motion into independent X and Y springs — a single
+    // spring on the 2D distance desyncs when the axes have different velocity.
+    const sx = new Spring({ from: HOME.x, damping: 0.8, response: 0.5, onChange: () => paint() });
+    const sy = new Spring({ from: HOME.y, damping: 0.8, response: 0.5, onChange: () => paint() });
+    paint();
+
+    const vx = new VelocityTracker();
+    const vy = new VelocityTracker();
+    let grab = { x: 0, y: 0 };
+
+    draggable(puck, {
+      onStart(e) {
+        // The velocity the puck was already carrying when you caught it. This
+        // is what survives the interruption instead of being cut to zero.
+        outSpring.textContent = 'no jump';
+        outVel.textContent = `${Math.round(Math.hypot(sx.v, sy.v))} px/s`;
+        // Stop the springs but keep their position — that position IS what is
+        // on screen, so there is nothing to reconcile.
+        sx.stop(); sy.stop();
+        const m = metrics(rig, puck);
+        grab = { x: e.clientX - (m.rig.left + sx.x), y: e.clientY - (m.rig.top + sy.x) };
+        vx.clear(); vy.clear();
+      },
+      onMove(e) {
+        const m = metrics(rig, puck);
+        const nx = clamp(e.clientX - m.rig.left - grab.x, 0, m.maxX);
+        const ny = clamp(e.clientY - m.rig.top - grab.y, 0, m.maxY);
+        vx.add(nx, e.timeStamp);
+        vy.add(ny, e.timeStamp);
+        sx.set(nx); sy.set(ny);
+      },
+      onEnd() {
+        if (motionReduced()) { sx.set(HOME.x); sy.set(HOME.y); return; }
+        // §5: hand the release velocity to the spring — no seam between the
+        // drag and the animation.
+        sx.to(HOME.x, { velocity: vx.velocity });
+        sy.to(HOME.y, { velocity: vy.velocity });
+      },
+    });
+  }
+}
+
+/* ==========================================================================
+   4 — Momentum projection (§6) with velocity handoff (§5).
+   ========================================================================== */
+{
+  const rig = $('#rig-momentum');
+  const puck = $('#puck-momentum');
+  const mkRelease = $('#mk-release');
+  const mkProjected = $('#mk-projected');
+  const outVel = $('#mo-vel');
+  const outProj = $('#mo-proj');
+  const outTarget = $('#mo-target');
+  const decel = $('#decel');
+  const decelVal = $('#decel-val');
+
+  let useProjection = true;
+  let decelRate = 0.998;
+  let y = 0;
+
+  const spring = new Spring({ from: 0, damping: 0.8, response: 0.35, onChange: (x) => {
+    puck.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  }});
+
+  const detents = () => {
+    const m = metrics(rig, puck);
+    return [0, m.maxX / 3, (m.maxX * 2) / 3, m.maxX];
+  };
+
+  const drawDetents = () => {
+    $$('.detent', rig).forEach((d) => d.remove());
+    const m = metrics(rig, puck);
+    y = (m.h - m.ph) / 2;
+    detents().forEach((d) => {
+      const dot = document.createElement('span');
+      dot.className = 'detent';
+      dot.style.left = `${d + m.pw / 2}px`;
+      dot.style.top = `${m.h - 14}px`;
+      rig.append(dot);
+    });
+    puck.style.transform = `translate3d(${clamp(spring.x, 0, m.maxX)}px, ${y}px, 0)`;
+  };
+  drawDetents();
+  new ResizeObserver(drawDetents).observe(rig);
+
+  segment($('#momentum'), 'projection', (v) => { useProjection = v === 'true'; });
+  decel.addEventListener('input', () => {
+    decelRate = Number(decel.value);
+    decelVal.textContent = decelRate.toFixed(3);
+  });
+
+  const track = new VelocityTracker();
+  let grabX = 0;
+
+  draggable(puck, {
+    onStart(e) {
+      spring.stop();
+      const m = metrics(rig, puck);
+      grabX = e.clientX - (m.rig.left + spring.x);
+      track.clear();
+      mkRelease.hidden = mkProjected.hidden = true;
+    },
+    onMove(e) {
+      const m = metrics(rig, puck);
+      const nx = clamp(e.clientX - m.rig.left - grabX, 0, m.maxX);
+      track.add(nx, e.timeStamp);
+      spring.set(nx);
+    },
+    onEnd() {
+      const m = metrics(rig, puck);
+      const v = track.velocity;
+      const points = detents();
+
+      // §6: project where the gesture is *going*, then snap to the nearest
+      // detent to that point — not to the nearest detent to the release point.
+      const projected = spring.x + (useProjection ? project(v, decelRate) : 0);
+      const target = nearest(projected, points);
+
+      mkRelease.hidden = false;
+      mkRelease.style.left = `${spring.x + m.pw / 2}px`;
+      mkProjected.hidden = !useProjection;
+      mkProjected.style.left = `${clamp(projected + m.pw / 2, 2, m.w - 2)}px`;
+
+      outVel.textContent = `${Math.round(v)} px/s`;
+      outProj.textContent = useProjection ? px(projected - spring.x) : 'off';
+      outTarget.textContent = `detent ${points.indexOf(target) + 1} of 4`;
+
+      if (motionReduced()) { spring.set(target); return; }
+      // §5: continue at the finger's exact velocity.
+      spring.to(target, { velocity: v });
+      tick(6);
+    },
+  });
+}
+
+/* ==========================================================================
+   5 — Damping ratio + response, plotted.
+   ========================================================================== */
+{
+  const canvas = $('#plot');
+  const ctx = canvas.getContext('2d');
+  const damp = $('#damp');
+  const resp = $('#resp');
+  const dampVal = $('#damp-val');
+  const respVal = $('#resp-val');
+  const outOver = $('#pa-over');
+  const outSettle = $('#pa-settle');
+  const outOmega = $('#pa-omega');
+  const rig = $('#rig-param');
+  const puck = $('#puck-param');
+
+  const DURATION = 1.6; // seconds of trace
+
+  /** Same integrator as Spring, run offline for the curve. */
+  function simulate(damping, response, duration = DURATION, dt = 1 / 600) {
+    const w = (2 * Math.PI) / response;
+    let x = 0, v = 0;
+    const out = [];
+    for (let t = 0; t <= duration; t += dt) {
+      out.push(x);
+      const a = -2 * damping * w * v - w * w * (x - 1);
+      v += a * dt;
+      x += v * dt;
+    }
+    return { series: out, dt };
+  }
+
+  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  let at = 0; // which end the demo puck sits at
+  const demo = new Spring({ from: 0, onChange: (x) => {
+    const m = metrics(rig, puck);
+    puck.style.transform = `translate3d(${x * m.maxX}px, ${(m.h - m.ph) / 2}px, 0)`;
+  }});
+
+  function draw() {
+    const damping = Number(damp.value);
+    const response = Number(resp.value);
+    const { series, dt } = simulate(damping, response);
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const pad = 18;
+    const top = pad;
+    const bottom = h - pad;
+    // Headroom so an overshoot of up to ~40% stays inside the frame.
+    const yFor = (val) => bottom - (val / 1.45) * (bottom - top);
+    const xFor = (t) => (t / DURATION) * w;
+
+    // target line
+    ctx.strokeStyle = token('--rule-strong');
+    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, yFor(1));
+    ctx.lineTo(w, yFor(1));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // the "response" instant — deliberately drawn so you can see it is not
+    // where the motion stops
+    ctx.strokeStyle = token('--gesture');
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(xFor(response), top);
+    ctx.lineTo(xFor(response), bottom);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = token('--gesture');
+    ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText('response', xFor(response) + 4, top + 10);
+
+    // the curve
+    ctx.strokeStyle = token('--trace');
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    series.forEach((val, i) => {
+      const t = i * dt;
+      const X = xFor(t);
+      const Y = yFor(val);
+      i === 0 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y);
+    });
+    ctx.stroke();
+
+    // readouts
+    const peak = Math.max(...series);
+    outOver.textContent = `${Math.max(0, (peak - 1) * 100).toFixed(1)} %`;
+    let settleIdx = series.length - 1;
+    while (settleIdx > 0 && Math.abs(series[settleIdx - 1] - 1) < 0.01) settleIdx--;
+    const settle = settleIdx * dt;
+    outSettle.textContent = settle >= DURATION ? `> ${DURATION.toFixed(1)} s` : `${settle.toFixed(2)} s`;
+    outOmega.textContent = `${((2 * Math.PI) / response).toFixed(1)} rad/s`;
+
+    dampVal.textContent = damping.toFixed(2);
+    respVal.textContent = response.toFixed(2);
+  }
+
+  function run() {
+    at = at ? 0 : 1;
+    demo.to(at, { damping: Number(damp.value), response: Number(resp.value) });
+    if (motionReduced()) { demo.stop(); demo.set(at); }
+  }
+
+  damp.addEventListener('input', draw);
+  resp.addEventListener('input', draw);
+  damp.addEventListener('change', run);
+  resp.addEventListener('change', run);
+  $('#replay').addEventListener('click', run);
+
+  $$('button[data-preset]', $('#parameters')).forEach((b) => {
+    b.addEventListener('click', () => {
+      const [d, r] = b.dataset.preset.split(',');
+      damp.value = d;
+      resp.value = r;
+      draw();
+      run();
+    });
+  });
+
+  draw();
+  new ResizeObserver(draw).observe(canvas);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+}
+
+/* ==========================================================================
+   6 — Rubber-banding (§9).
+   ========================================================================== */
+{
+  const rig = $('#rig-band');
+  const puck = $('#puck-band');
+  const wall = $('#band-wall');
+  const outOver = $('#rb-over');
+  const outApplied = $('#rb-applied');
+  const outRatio = $('#rb-ratio');
+
+  let band = true;
+  let y = 0;
+  let limit = 0;
+
+  const spring = new Spring({ from: 12, damping: 1, response: 0.35, onChange: (x) => {
+    puck.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  }});
+
+  const layout = () => {
+    const m = metrics(rig, puck);
+    y = (m.h - m.ph) / 2;
+    limit = Math.max(0, m.w * 0.55 - m.pw);
+    wall.style.left = `${limit + m.pw}px`;
+    wall.style.top = '0';
+    wall.style.bottom = '0';
+    wall.style.width = '1px';
+    puck.style.transform = `translate3d(${spring.x}px, ${y}px, 0)`;
+  };
+  layout();
+  new ResizeObserver(layout).observe(rig);
+
+  segment($('#rubberband'), 'band', (v) => { band = v === 'true'; });
+
+  let grabX = 0;
+  draggable(puck, {
+    onStart(e) {
+      spring.stop();
+      grabX = e.clientX - (rig.getBoundingClientRect().left + spring.x);
+    },
+    onMove(e) {
+      const m = metrics(rig, puck);
+      const raw = clamp(e.clientX - m.rig.left - grabX, 0, m.w);
+      let applied = raw;
+      if (raw > limit) {
+        const overshoot = raw - limit;
+        applied = band ? limit + rubberband(overshoot, m.w) : limit;
+        outOver.textContent = px(overshoot);
+        outApplied.textContent = px(applied - limit);
+        outRatio.textContent = overshoot > 0 ? `${((applied - limit) / overshoot).toFixed(2)}×` : '—';
+      } else {
+        outOver.textContent = '0 px';
+        outApplied.textContent = '0 px';
+        outRatio.textContent = '1.00×';
+      }
+      spring.set(applied);
+    },
+    onEnd() {
+      if (spring.x <= limit) return;
+      if (motionReduced()) { spring.set(limit); return; }
+      spring.to(limit);
+    },
+  });
+}
+
+/* ==========================================================================
+   7 — The sheet. Detents, velocity-sign commit, rubber-band, a scrim, a
+   parent layer pushed back, and blur that arrives with the surface (§12).
+   ========================================================================== */
+{
+  const host = $('#sheet-host');
+  const sheet = $('#sheet');
+  const grabber = $('#sheet-grabber');
+  const scrim = $('#sheet-scrim');
+  const bg = $('#sheet-bg');
+  const openBtn = $('#sheet-open');
+  const outDetent = $('#sh-detent');
+  const outVel = $('#sh-vel');
+  const outProj = $('#sh-proj');
+  const outWhy = $('#sh-why');
+
+  let commitRule = 'velocity';
+  let H = sheet.getBoundingClientRect().height || 260;
+  // translateY values: 0 = full, H = dismissed.
+  let detents = [0, H * 0.45, H];
+  const names = ['full', 'half', 'closed'];
+
+  const paint = (ty) => {
+    const t = clamp(ty, -80, H);
+    sheet.style.transform = `translate3d(0, ${t}px, 0)`;
+    const progress = clamp(1 - t / H, 0, 1);
+
+    // Dim to focus, and push the parent layer back (§12).
+    scrim.style.opacity = String(progress);
+    bg.style.transform = `scale(${1 - progress * 0.035}) translateY(${-progress * 6}px)`;
+
+    // Materialize, don't just fade: blur and scale arrive together.
+    if (document.documentElement.dataset.transparency !== 'reduce') {
+      const blur = 4 + progress * 20;
+      sheet.style.backdropFilter = `blur(${blur.toFixed(1)}px) saturate(180%)`;
+      sheet.style.webkitBackdropFilter = sheet.style.backdropFilter;
+    }
+    // Fade only in the last stretch, so the surface reads as solid glass at
+    // every detent and only dissolves as it leaves.
+    sheet.style.opacity = String(clamp(progress * 4, 0, 1));
+  };
+
+  const spring = new Spring({ from: H, damping: 0.8, response: 0.3, onChange: paint });
+
+  const layout = () => {
+    H = sheet.getBoundingClientRect().height || H;
+    detents = [0, H * 0.45, H];
+    paint(spring.x);
+  };
+  const ro = new ResizeObserver(layout);
+  ro.observe(host);
+  paint(H);
+
+  const settle = (target, why) => {
+    const idx = detents.indexOf(target);
+    outDetent.textContent = names[idx] ?? '—';
+    outWhy.textContent = why;
+    if (idx !== 2) tick(idx === 0 ? 10 : 6);
+    if (motionReduced()) {
+      // §14: a gentler, non-vestibular equivalent — no travel, just a fade.
+      sheet.style.transition = 'opacity 200ms ease';
+      spring.stop();
+      spring.set(target);
+      setTimeout(() => { sheet.style.transition = ''; }, 220);
+      return;
+    }
+    spring.to(target);
+  };
+
+  openBtn.addEventListener('click', () => {
+    settle(spring.x > detents[1] ? detents[1] : detents[0], 'button');
+  });
+
+  segment($('#sheet-bench'), 'commit', (v) => { commitRule = v; });
+
+  const track = new VelocityTracker();
+  let grabY = 0;
+
+  const rig = { onStart(e) {
+      spring.stop();
+      grabY = e.clientY - (sheet.getBoundingClientRect().top);
+      track.clear();
+      outWhy.textContent = 'dragging';
+    },
+    onMove(e) {
+      const hostTop = host.getBoundingClientRect().top;
+      const sheetTop = host.getBoundingClientRect().height - H;
+      let ty = e.clientY - hostTop - sheetTop - grabY;
+      // §9: resist above the top detent rather than stopping dead.
+      if (ty < 0) ty = -rubberband(-ty, H);
+      ty = Math.min(ty, H);
+      track.add(ty, e.timeStamp);
+      spring.set(ty);
+      outVel.textContent = `${Math.round(track.velocity)} px/s`;
+    },
+    onEnd() {
+      const v = track.velocity;
+      const projected = spring.x + project(v, 0.996);
+      outVel.textContent = `${Math.round(v)} px/s`;
+      outProj.textContent = px(projected);
+
+      if (commitRule === 'position') {
+        // The rule the skill argues against: ignore the throw entirely.
+        settle(nearest(spring.x, detents), 'nearest position');
+        return;
+      }
+      // §3/§6: a decisive flick uses the velocity *sign*; otherwise fall back
+      // to the projected resting point.
+      if (Math.abs(v) > 350) {
+        const dir = Math.sign(v);
+        const ordered = [...detents].sort((a, b) => a - b);
+        const next = dir > 0
+          ? ordered.find((d) => d > spring.x + 1) ?? ordered[ordered.length - 1]
+          : [...ordered].reverse().find((d) => d < spring.x - 1) ?? ordered[0];
+        settle(next, `velocity sign ${dir > 0 ? '↓' : '↑'}`);
+      } else {
+        settle(nearest(projected, detents), 'projected point');
+      }
+    },
+  };
+
+  draggable(grabber, rig);
+  draggable(sheet, rig);
+}
+
+/* ==========================================================================
+   8 — Size-specific tracking (§15).
+   ========================================================================== */
+{
+  const sample = $('#type-sample');
+  const rows = { xl: $('[data-size="xl"] .txt', sample), md: $('[data-size="md"] .txt', sample), sm: $('[data-size="sm"] .txt', sample) };
+  const outs = { xl: $('#ty-xl'), md: $('#ty-md'), sm: $('#ty-sm') };
+
+  const SETS = {
+    optical: { xl: '-0.035em', md: '-0.018em', sm: '0.008em' },
+    flat: { xl: '-0.01em', md: '-0.01em', sm: '-0.01em' },
+  };
+
+  const apply = (mode) => {
+    const set = SETS[mode];
+    for (const key of ['xl', 'md', 'sm']) {
+      rows[key].style.letterSpacing = set[key];
+      outs[key].textContent = set[key];
+    }
+  };
+  apply('optical');
+  segment($('#typography'), 'tracking', apply);
+}
+
+</script>
